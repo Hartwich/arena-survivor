@@ -6,7 +6,7 @@ Co-op arena survival game for Open Party Lab with character choices, waves, and 
 
 ## Status
 
-Alpha. The survival loop, character choice, and lobby setup are playable. Needs deeper progression, balancing, and enemy/readability passes.
+Beta. The survival loop, character choice, and lobby setup are already good to play locally. Still needs deeper progression, balancing, and enemy/readability passes before a stable release.
 
 ## Run Through Open Party Lab
 
