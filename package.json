@@ -1,6 +1,7 @@
 {
   "name": "@open-party-lab/game-arena-survivor",
   "version": "0.1.0",
+  "description": "Co-op arena survival game for Open Party Lab with character choices, waves, and difficulty setup.",
   "private": false,
   "license": "Apache-2.0",
   "type": "module",
@@ -36,7 +37,8 @@
     "dist",
     "public",
     "README.md",
-    "AGENTS.md"
+    "AGENTS.md",
+    "docs"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -58,4 +60,3 @@
     "typescript": "^5.7.3"
   }
 }
-

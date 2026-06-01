@@ -1,10 +1,18 @@
-# Open Party Lab: Arena Survivor
+# Arena Survivor
 
-Arena Survivor is an Open Party Lab game package. Players pick characters on their phones, survive escalating enemy waves on the shared host screen, and spend collected material between waves.
+Co-op arena survival game for Open Party Lab with character choices, waves, and difficulty setup.
 
-## Local Development
+![In-game screenshot](docs/screenshots/host.png)
 
-Recommended folder layout:
+## Status
+
+Alpha. The survival loop, character choice, and lobby setup are playable. Needs deeper progression, balancing, and enemy/readability passes.
+
+## Run Through Open Party Lab
+
+This repo is not a standalone app. Run it through the Open Party Lab platform.
+
+Recommended layout:
 
 ```text
 Open-Party-Lab/
@@ -12,35 +20,53 @@ Open-Party-Lab/
     arena-survivor/
 ```
 
-Install and build this game:
+From the Platform repo:
+
+```bash
+npm install
+npm run games:sync-local
+npm run dev:all
+```
+
+The Platform loads this game only when the repo exists locally and `npm run games:sync-local` links it. Missing optional games are skipped.
+
+## GitHub Metadata
+
+Description:
+
+```text
+Co-op arena survival game for Open Party Lab with character choices, waves, and difficulty setup.
+```
+
+Suggested topics:
+
+```text
+open-party-lab party-game browser-game phaser typescript local-multiplayer arena-survival
+```
+
+## Package Entrypoints
+
+- `@open-party-lab/game-arena-survivor/manifest`
+- `@open-party-lab/game-arena-survivor/protocol`
+- `@open-party-lab/game-arena-survivor/server`
+- `@open-party-lab/game-arena-survivor/host`
+- `@open-party-lab/game-arena-survivor/controller`
+
+The Platform should import only these public entrypoints.
+
+## Development Checks
 
 ```bash
 npm install
 npm run typecheck
 npm run build
+npm run pack:dry-run
 ```
 
-For local Platform integration, run this in the Party Platform repo:
+For visual checks, start Open Party Lab, add virtual controllers when needed, and capture host screenshots through a browser.
 
-```bash
-cd ../..
-npm run games:sync-local
-npm run dev:all
-```
+## License
 
-The Platform links only game repos that exist locally. If this repo is not present, Arena Survivor is skipped.
+Code is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
-## Public Entrypoints
-
-```text
-@open-party-lab/game-arena-survivor/manifest
-@open-party-lab/game-arena-survivor/protocol
-@open-party-lab/game-arena-survivor/server
-@open-party-lab/game-arena-survivor/host
-@open-party-lab/game-arena-survivor/controller
-```
-
-## Browser Note
-
-Chromium-based browsers and Safari are recommended for phone controllers. Firefox may have issues around fullscreen, reconnect/session handling, or touch timing.
-
+Assets, generated media, word lists, prompts, and third-party references may need separate rights review before public store distribution.
