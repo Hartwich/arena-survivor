@@ -1,6 +1,10 @@
 import Phaser from "phaser";
 import {
+  ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD,
+  ARENA_SURVIVOR_MELEE_IMPACT_RATIO,
+  ARENA_SURVIVOR_MELEE_SWING_DURATION_MS,
   ARENA_SURVIVOR_MAX_WEAPON_SLOTS,
+  resolveArenaSurvivorWeaponOrbitDistance,
   resolveArenaSurvivorWeaponSlotTransform,
   type ArenaSurvivorState,
   type ArenaSurvivorWeaponCategory
@@ -129,30 +133,63 @@ function resolveWeaponAimAngle(
   return fallbackAngle;
 }
 
-function resolveMeleeLungeProgress(
+function resolveMeleeSwingPose(
   lastFiredAt: number | null | undefined,
   elapsedMs: number
-): number {
+): { reachProgress: number; angleOffset: number } {
   if (lastFiredAt === null || lastFiredAt === undefined) {
-    return 0;
+    return { reachProgress: 0, angleOffset: 0 };
   }
 
-  const durationMs = arenaSurvivorVisualConfig.weaponSlots.meleeLungeDurationMs;
   const elapsedSinceAttack = elapsedMs - lastFiredAt;
 
-  if (elapsedSinceAttack < 0 || elapsedSinceAttack > durationMs) {
-    return 0;
+  if (elapsedSinceAttack < 0 || elapsedSinceAttack > ARENA_SURVIVOR_MELEE_SWING_DURATION_MS) {
+    return { reachProgress: 0, angleOffset: 0 };
   }
 
-  const peakDurationMs = durationMs * arenaSurvivorVisualConfig.weaponSlots.meleeLungePeakRatio;
+  const impactAtMs = ARENA_SURVIVOR_MELEE_SWING_DURATION_MS * ARENA_SURVIVOR_MELEE_IMPACT_RATIO;
 
-  if (elapsedSinceAttack <= peakDurationMs) {
-    return elapsedSinceAttack / Math.max(1, peakDurationMs);
+  if (elapsedSinceAttack <= impactAtMs) {
+    const windupProgress = elapsedSinceAttack / Math.max(1, impactAtMs);
+    return {
+      reachProgress: windupProgress,
+      angleOffset: -ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD * (1 - windupProgress)
+    };
   }
 
-  return Math.max(
-    0,
-    1 - (elapsedSinceAttack - peakDurationMs) / Math.max(1, durationMs - peakDurationMs)
+  const followThroughProgress =
+    (elapsedSinceAttack - impactAtMs) /
+    Math.max(1, ARENA_SURVIVOR_MELEE_SWING_DURATION_MS - impactAtMs);
+
+  return {
+    reachProgress: Math.max(0, 1 - followThroughProgress),
+    angleOffset: ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD * followThroughProgress
+  };
+}
+
+function resolveWeaponDisplaySize(
+  player: ArenaSurvivorState["players"][number],
+  slotIndex: number
+): number {
+  const equippedWeapon = player.loadout.weapons[slotIndex];
+  const weaponState = player.weaponRuntimeStates[slotIndex];
+  const baseDisplaySize = Math.max(
+    arenaSurvivorVisualConfig.weaponSlots.minSpriteDisplaySize,
+    player.radius * arenaSurvivorVisualConfig.weaponSlots.spriteDisplaySizeMultiplier
+  );
+
+  if (equippedWeapon?.category !== "melee") {
+    return baseDisplaySize;
+  }
+
+  const effectiveRange = weaponState?.effectiveRange ?? weaponState?.lastAttackReachDistance ?? 0;
+  return Phaser.Math.Clamp(
+    Math.max(
+      arenaSurvivorVisualConfig.weaponSlots.meleeMinSpriteDisplaySize,
+      effectiveRange * arenaSurvivorVisualConfig.weaponSlots.meleeSpriteRangeRatio
+    ),
+    arenaSurvivorVisualConfig.weaponSlots.meleeMinSpriteDisplaySize,
+    arenaSurvivorVisualConfig.weaponSlots.meleeMaxSpriteDisplaySize
   );
 }
 
@@ -161,36 +198,37 @@ function resolveWeaponPose(
   state: ArenaSurvivorState,
   slotIndex: number,
   orbitDistance: number,
-  playerPosition: { x: number; y: number }
+  playerPosition: { x: number; y: number },
+  weaponDisplaySize: number
 ): { x: number; y: number; aimAngle: number } {
   const equippedWeapon = player.loadout.weapons[slotIndex];
   const weaponState = player.weaponRuntimeStates[slotIndex];
   const slotTransform = resolveArenaSurvivorWeaponSlotTransform(slotIndex, orbitDistance);
   const baseX = playerPosition.x + slotTransform.offsetX;
   const baseY = playerPosition.y + slotTransform.offsetY;
-  const meleeLungeProgress =
+  const meleeSwingPose =
     equippedWeapon?.category === "melee"
-      ? resolveMeleeLungeProgress(weaponState?.lastFiredAt, state.elapsedMs)
-      : 0;
-  const defaultMeleeReachDistance = Math.max(
-    arenaSurvivorVisualConfig.weaponSlots.meleeLungeMinDistance,
-    player.radius * arenaSurvivorVisualConfig.weaponSlots.meleeLungeDistanceMultiplier
-  );
+      ? resolveMeleeSwingPose(weaponState?.lastFiredAt, state.elapsedMs)
+      : { reachProgress: 0, angleOffset: 0 };
   const isActiveMeleeSwing =
     equippedWeapon?.category === "melee" &&
-    meleeLungeProgress > 0.01 &&
+    meleeSwingPose.reachProgress > 0.01 &&
     weaponState?.lastAimAngleRad !== null &&
     weaponState?.lastAimAngleRad !== undefined;
   const meleeAimAngle = weaponState?.lastAimAngleRad ?? slotTransform.angleRad;
   const aimAngle =
     equippedWeapon?.category === "melee"
       ? isActiveMeleeSwing
-        ? meleeAimAngle
+        ? meleeAimAngle + meleeSwingPose.angleOffset
         : slotTransform.angleRad
       : resolveWeaponAimAngle(player, state, baseX, baseY, slotTransform.angleRad);
   const meleeLungeDistance =
     equippedWeapon?.category === "melee"
-      ? (weaponState?.lastAttackReachDistance ?? defaultMeleeReachDistance) * meleeLungeProgress
+      ? Math.max(
+        0,
+        (weaponState?.lastAttackReachDistance ?? 0) -
+          weaponDisplaySize * arenaSurvivorVisualConfig.weaponSlots.meleeSpriteTipRatio
+      ) * meleeSwingPose.reachProgress
       : 0;
 
   return {
@@ -577,28 +615,28 @@ export function drawArenaSurvivorEntities(
     const playerY = playerPosition.y;
     const playerRadius = Math.max(10, player.radius);
     const playerDisplayRadius = resolvePlayerDisplayRadius(playerRadius) * playerPosition.pulseScale;
-    const slotDistance = Math.max(
-      arenaSurvivorVisualConfig.weaponSlots.minOrbitDistance,
-      player.radius * arenaSurvivorVisualConfig.weaponSlots.orbitMultiplier
-    );
+    const slotDistance = resolveArenaSurvivorWeaponOrbitDistance(player.radius);
     const occupiedSlots = player.loadout.weapons;
 
     for (let slotIndex = 0; slotIndex < ARENA_SURVIVOR_MAX_WEAPON_SLOTS; slotIndex += 1) {
       const equippedWeapon = occupiedSlots[slotIndex];
 
       if (equippedWeapon && !resolveArenaSurvivorWeaponCarrySpriteKey(equippedWeapon.weaponId)) {
+        const weaponDisplaySize = resolveWeaponDisplaySize(player, slotIndex);
         const weaponPose = resolveWeaponPose(player, state, slotIndex, slotDistance, {
           x: playerX,
           y: playerY
-        });
+        }, weaponDisplaySize);
+        const fallbackTipLength = Math.max(8, weaponDisplaySize * 0.4);
+        const fallbackHalfWidth = Math.max(5, weaponDisplaySize * 0.25);
         graphics.fillStyle(resolveWeaponColor(equippedWeapon.category), 0.95);
         graphics.fillTriangle(
-          weaponPose.x + Math.cos(weaponPose.aimAngle) * 8,
-          weaponPose.y + Math.sin(weaponPose.aimAngle) * 8,
-          weaponPose.x + Math.cos(weaponPose.aimAngle + 2.4) * 5,
-          weaponPose.y + Math.sin(weaponPose.aimAngle + 2.4) * 5,
-          weaponPose.x + Math.cos(weaponPose.aimAngle - 2.4) * 5,
-          weaponPose.y + Math.sin(weaponPose.aimAngle - 2.4) * 5
+          weaponPose.x + Math.cos(weaponPose.aimAngle) * fallbackTipLength,
+          weaponPose.y + Math.sin(weaponPose.aimAngle) * fallbackTipLength,
+          weaponPose.x + Math.cos(weaponPose.aimAngle + 2.4) * fallbackHalfWidth,
+          weaponPose.y + Math.sin(weaponPose.aimAngle + 2.4) * fallbackHalfWidth,
+          weaponPose.x + Math.cos(weaponPose.aimAngle - 2.4) * fallbackHalfWidth,
+          weaponPose.y + Math.sin(weaponPose.aimAngle - 2.4) * fallbackHalfWidth
         );
       }
     }
@@ -721,10 +759,7 @@ export function syncArenaSurvivorSpriteLayer(
 
   for (const player of state.players) {
     const playerPosition = resolvePlayerVisualPosition(player, state.elapsedMs);
-    const orbitDistance = Math.max(
-      arenaSurvivorVisualConfig.weaponSlots.minOrbitDistance,
-      player.radius * arenaSurvivorVisualConfig.weaponSlots.orbitMultiplier
-    );
+    const orbitDistance = resolveArenaSurvivorWeaponOrbitDistance(player.radius);
 
     for (let slotIndex = 0; slotIndex < ARENA_SURVIVOR_MAX_WEAPON_SLOTS; slotIndex += 1) {
       const equippedWeapon = player.loadout.weapons[slotIndex];
@@ -749,11 +784,15 @@ export function syncArenaSurvivorSpriteLayer(
         continue;
       }
 
-      const displaySize = Math.max(
-        arenaSurvivorVisualConfig.weaponSlots.minSpriteDisplaySize,
-        player.radius * arenaSurvivorVisualConfig.weaponSlots.spriteDisplaySizeMultiplier
+      const displaySize = resolveWeaponDisplaySize(player, slotIndex);
+      const weaponPose = resolveWeaponPose(
+        player,
+        state,
+        slotIndex,
+        orbitDistance,
+        playerPosition,
+        displaySize
       );
-      const weaponPose = resolveWeaponPose(player, state, slotIndex, orbitDistance, playerPosition);
       let nextWeaponSprite = weaponSprite;
 
       if (!nextWeaponSprite) {

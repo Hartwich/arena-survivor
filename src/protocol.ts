@@ -2,6 +2,18 @@ import type { PlayerInput } from "@open-party-lab/game-core";
 
 export const ARENA_SURVIVOR_MAX_WEAPON_SLOTS = 6;
 export const ARENA_SURVIVOR_WEAPON_SLOT_ANGLE_OFFSET_RAD = -Math.PI / 2;
+export const ARENA_SURVIVOR_WEAPON_ORBIT_DISTANCE_MULTIPLIER = 2.25;
+export const ARENA_SURVIVOR_WEAPON_MIN_ORBIT_DISTANCE = 18;
+export const ARENA_SURVIVOR_MELEE_SWING_DURATION_MS = 240;
+export const ARENA_SURVIVOR_MELEE_IMPACT_RATIO = 0.45;
+export const ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD = Math.PI / 3;
+
+export function resolveArenaSurvivorWeaponOrbitDistance(playerRadius: number): number {
+  return Math.max(
+    ARENA_SURVIVOR_WEAPON_MIN_ORBIT_DISTANCE,
+    playerRadius * ARENA_SURVIVOR_WEAPON_ORBIT_DISTANCE_MULTIPLIER
+  );
+}
 
 export function resolveArenaSurvivorWeaponSlotTransform(
   slotIndex: number,
@@ -310,6 +322,8 @@ export interface ArenaSurvivorWeaponRuntimeState {
   lastFiredAt: number | null;
   lastAimAngleRad?: number | null;
   lastAttackReachDistance?: number | null;
+  effectiveRange?: number | null;
+  meleeAttackResolvesAtMs?: number | null;
 }
 
 export interface ArenaSurvivorProjectileDefinition {

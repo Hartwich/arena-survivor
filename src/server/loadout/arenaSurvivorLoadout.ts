@@ -525,7 +525,14 @@ export function createArenaSurvivorWeaponRuntimeStates(
       lastAttackReachDistance:
         previousWeapon?.weaponInstanceId === weapon.weaponInstanceId
           ? previousWeapon.lastAttackReachDistance ?? null
-          : null
+          : null,
+      effectiveRange:
+        previousWeapon?.weaponInstanceId === weapon.weaponInstanceId
+          ? previousWeapon.effectiveRange ?? null
+          : null,
+      // Pending impacts belong to the current combat tick and must not survive
+      // shop/loadout rebuilds or leak into the next round's elapsed-time clock.
+      meleeAttackResolvesAtMs: null
     };
   });
 }
