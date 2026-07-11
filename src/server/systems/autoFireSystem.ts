@@ -1,4 +1,10 @@
-import { resolveArenaSurvivorWeaponSlotTransform } from "../../protocol.js";
+import {
+  ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD,
+  ARENA_SURVIVOR_MELEE_IMPACT_RATIO,
+  ARENA_SURVIVOR_MELEE_SWING_DURATION_MS,
+  resolveArenaSurvivorWeaponOrbitDistance,
+  resolveArenaSurvivorWeaponSlotTransform
+} from "../../protocol.js";
 import type {
   ArenaSurvivorRuntimeEnemyState,
   ArenaSurvivorRuntimePlayerState,
@@ -11,8 +17,6 @@ import { createArenaSurvivorProjectile } from "../factories/createProjectile.js"
 import { resolveArenaSurvivorDifficulty } from "../difficulty/arenaSurvivorDifficulty.js";
 import { resolveArenaSurvivorWeaponLevel } from "../loadout/arenaSurvivorLoadout.js";
 import type { ArenaSurvivorWeaponDamageScaling } from "../content/types.js";
-
-const weaponOrbitDistanceMultiplier = 2.25;
 
 function resolveStatScalingMultiplier(
   scaling: ArenaSurvivorWeaponDamageScaling | undefined,
@@ -65,12 +69,16 @@ function pickTargetEnemy(
   });
 }
 
-function collectEnemiesInRange(
+function resolveAngleDifference(left: number, right: number): number {
+  return Math.atan2(Math.sin(left - right), Math.cos(left - right));
+}
+
+function collectEnemiesInMeleeArc(
   originX: number,
   originY: number,
   enemies: ArenaSurvivorRuntimeEnemyState[],
   range: number,
-  extraHitRadius = 0
+  aimAngleRad: number
 ): ArenaSurvivorRuntimeEnemyState[] {
   return enemies
     .filter((enemy) => {
@@ -78,8 +86,19 @@ function collectEnemiesInRange(
         return false;
       }
 
-      const hitDistance = range + enemy.radius + extraHitRadius;
-      return distanceSquared(originX, originY, enemy.x, enemy.y) <= hitDistance * hitDistance;
+      const hitDistance = range + enemy.radius;
+      const centerDistance = Math.hypot(enemy.x - originX, enemy.y - originY);
+      const withinRange = centerDistance <= hitDistance;
+      const enemyAngle = Math.atan2(enemy.y - originY, enemy.x - originX);
+      const angularPadding =
+        centerDistance > 0.0001
+          ? Math.asin(Math.min(1, enemy.radius / centerDistance))
+          : Math.PI;
+      const withinArc =
+        Math.abs(resolveAngleDifference(enemyAngle, aimAngleRad)) <=
+        ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD + angularPadding;
+
+      return withinRange && withinArc;
     })
     .sort(
       (left, right) =>
@@ -128,38 +147,21 @@ export function applyAutoFireSystem(
     };
 
     for (let weaponIndex = 0; weaponIndex < nextWeaponStates.length; weaponIndex += 1) {
-      const weaponState = nextWeaponStates[weaponIndex];
-
-      if (weaponState.cooldownRemainingMs > 0) {
-        continue;
-      }
-
+      let weaponState = nextWeaponStates[weaponIndex];
       const { definition, levelDefinition } = resolveArenaSurvivorWeaponLevel(
         weaponState.weaponId,
         weaponState.level
       );
       const slotTransform = resolveArenaSurvivorWeaponSlotTransform(
         weaponIndex,
-        nextPlayer.radius * weaponOrbitDistanceMultiplier
+        resolveArenaSurvivorWeaponOrbitDistance(nextPlayer.radius)
       );
       const originX = nextPlayer.x + slotTransform.offsetX;
       const originY = nextPlayer.y + slotTransform.offsetY;
-      const projectileRadius =
-        definition.attackPattern === "single_projectile"
-          ? (arenaSurvivorProjectileDefinitionsById[definition.projectileDefinitionId ?? definition.id]?.radius ?? 0)
-          : 0;
       const weaponRange = levelDefinition.range * nextPlayer.stats.weaponRangeMultiplier;
-      const targetEnemy = pickTargetEnemy(
-        originX,
-        originY,
-        nextEnemies,
-        weaponRange,
-        projectileRadius
-      );
 
-      if (!targetEnemy) {
-        continue;
-      }
+      weaponState = { ...weaponState, effectiveRange: weaponRange };
+      nextWeaponStates[weaponIndex] = weaponState;
 
       const categoryMultiplier =
         definition.category === "magic"
@@ -175,188 +177,215 @@ export function applyAutoFireSystem(
         nextPlayer.stats,
         categoryMultiplier * elementalMultiplier
       );
-      const baseAngle = Math.atan2(targetEnemy.y - originY, targetEnemy.x - originX);
-      const attackReachDistance =
-        definition.category === "melee"
-          ? Math.max(
-            nextPlayer.radius * 0.65,
-            Math.hypot(targetEnemy.x - originX, targetEnemy.y - originY) - targetEnemy.radius * 0.55
-          )
-          : null;
       const baseDamage =
-        levelDefinition.damage *
-        nextPlayer.stats.damageMultiplier *
-        weaponScalingMultiplier;
-      const cooldownMs = levelDefinition.cooldownMs / nextPlayer.stats.autoFireRateMultiplier;
+        levelDefinition.damage * nextPlayer.stats.damageMultiplier * weaponScalingMultiplier;
       const critChance = Math.max(
         0,
         (nextPlayer.stats.critChancePct + (levelDefinition.critChancePct ?? 0)) / 100
       );
       const critScale = levelDefinition.critScale ?? 1;
 
-      if (definition.attackPattern === "single_projectile") {
-        const projectileCount = Math.max(
-          1,
-          (levelDefinition.projectileCount ?? 1) + nextPlayer.stats.projectileCountBonus
-        );
-        const spreadRad = projectileCount > 1 ? 0.18 : 0;
-        const projectileSpeed =
-          levelDefinition.projectileSpeed * nextPlayer.stats.projectileSpeedMultiplier;
-
-        for (let index = 0; index < projectileCount; index += 1) {
-          const offsetIndex = index - (projectileCount - 1) / 2;
-          const angle = baseAngle + offsetIndex * spreadRad;
-          const critRoll = createSeededRandom(nextSeed);
-          nextSeed = critRoll.seed;
-          const crit = critRoll.value <= critChance;
-          const damage = crit
-            ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
-            : baseDamage;
-
-          nextProjectiles.push(
-            createArenaSurvivorProjectile({
-              ownerId: nextPlayer.playerId,
-              ownerKind: "player",
-              definitionId: definition.projectileDefinitionId ?? definition.id,
-              originX,
-              originY,
-              angleRad: angle,
-              now,
-              speed: projectileSpeed,
-              damage,
-              maxRange: weaponRange,
-              pierce: Math.max(1, 1 + (levelDefinition.pierce ?? 0) + nextPlayer.stats.pierceBonus),
-              crit
-            })
+      if (
+        definition.attackPattern === "melee_arc" &&
+        weaponState.meleeAttackResolvesAtMs !== null &&
+        weaponState.meleeAttackResolvesAtMs !== undefined
+      ) {
+        if (state.elapsedMs >= weaponState.meleeAttackResolvesAtMs) {
+          const aimAngle = weaponState.lastAimAngleRad ?? slotTransform.angleRad;
+          const rapidHitCount = Math.max(
+            1,
+            (levelDefinition.projectileCount ?? 1) + nextPlayer.stats.projectileCountBonus
           );
+          const cleaveTargetCount = Math.max(
+            0,
+            (levelDefinition.pierce ?? 0) + nextPlayer.stats.pierceBonus
+          );
+          const firstTarget = collectEnemiesInMeleeArc(
+            originX,
+            originY,
+            nextEnemies,
+            weaponRange,
+            aimAngle
+          )[0];
+          const rapidTargetIds = new Set<string>();
+          const applyMeleeHit = (enemyId: string): void => {
+            const targetIndex = nextEnemies.findIndex((enemy) => enemy.id === enemyId);
+            const enemy = targetIndex >= 0 ? nextEnemies[targetIndex] : null;
+
+            if (!enemy || !enemy.alive) {
+              return;
+            }
+
+            const critRoll = createSeededRandom(nextSeed);
+            nextSeed = critRoll.seed;
+            const crit = critRoll.value <= critChance;
+            const damage = crit
+              ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
+              : baseDamage;
+            const nextEnemyHp = enemy.hp - damage;
+
+            nextEnemies[targetIndex] = { ...enemy, hp: nextEnemyHp, alive: nextEnemyHp > 0 };
+            nextPlayer = {
+              ...nextPlayer,
+              hp: Math.min(
+                nextPlayer.maxHp,
+                nextPlayer.hp + damage * (Math.max(0, nextPlayer.stats.lifeStealPct) / 100)
+              )
+            };
+            hitsLandedThisTick += 1;
+
+            if (nextEnemyHp <= 0) {
+              nextKills += 1;
+              killsThisTick += 1;
+              const drops = createArenaSurvivorEnemyDrops({
+                enemy,
+                materialValue: difficulty.pickupValue,
+                now,
+                seed: nextSeed,
+                luck: nextPlayer.stats.luck
+              });
+              nextSeed = drops.seed;
+              nextPickups.push(...drops.pickups);
+            }
+          };
+
+          for (let hitIndex = 0; hitIndex < rapidHitCount; hitIndex += 1) {
+            const activePrimaryTarget =
+              nextEnemies.find((enemy) => enemy.id === firstTarget?.id && enemy.alive) ??
+              collectEnemiesInMeleeArc(
+                originX,
+                originY,
+                nextEnemies,
+                weaponRange,
+                aimAngle
+              ).find((enemy) => !rapidTargetIds.has(enemy.id));
+
+            if (!activePrimaryTarget) {
+              break;
+            }
+
+            rapidTargetIds.add(activePrimaryTarget.id);
+            applyMeleeHit(activePrimaryTarget.id);
+          }
+
+          const cleaveTargets = collectEnemiesInMeleeArc(
+            originX,
+            originY,
+            nextEnemies,
+            weaponRange,
+            aimAngle
+          )
+            .filter((enemy) => !rapidTargetIds.has(enemy.id))
+            .slice(0, cleaveTargetCount);
+
+          for (const cleaveTarget of cleaveTargets) {
+            applyMeleeHit(cleaveTarget.id);
+          }
+
+          shotsFiredThisTick += cleaveTargets.length;
+          nextWeaponStates[weaponIndex] = {
+            ...weaponState,
+            meleeAttackResolvesAtMs: null
+          };
         }
 
-        shotsFiredThisTick += projectileCount;
-      } else {
+        continue;
+      }
+
+      if (weaponState.cooldownRemainingMs > 0) {
+        continue;
+      }
+
+      const projectileRadius =
+        definition.attackPattern === "single_projectile"
+          ? (arenaSurvivorProjectileDefinitionsById[
+            definition.projectileDefinitionId ?? definition.id
+          ]?.radius ?? 0)
+          : 0;
+      const targetEnemy = pickTargetEnemy(
+        originX,
+        originY,
+        nextEnemies,
+        weaponRange,
+        projectileRadius
+      );
+
+      if (!targetEnemy) {
+        continue;
+      }
+
+      const baseAngle = Math.atan2(targetEnemy.y - originY, targetEnemy.x - originX);
+      const cooldownMs = levelDefinition.cooldownMs / nextPlayer.stats.autoFireRateMultiplier;
+
+      if (definition.attackPattern === "melee_arc") {
         const rapidHitCount = Math.max(
           1,
           (levelDefinition.projectileCount ?? 1) + nextPlayer.stats.projectileCountBonus
         );
-        const cleaveTargetCount = Math.max(0, (levelDefinition.pierce ?? 0) + nextPlayer.stats.pierceBonus);
-        const primaryTargetId = targetEnemy.id;
+        const targetDistance = Math.hypot(targetEnemy.x - originX, targetEnemy.y - originY);
+        const attackReachDistance = Math.max(
+          0,
+          Math.min(weaponRange, targetDistance - targetEnemy.radius)
+        );
 
-        for (let hitIndex = 0; hitIndex < rapidHitCount; hitIndex += 1) {
-          const activePrimaryTarget =
-            nextEnemies.find((enemy) => enemy.id === primaryTargetId && enemy.alive) ??
-            pickTargetEnemy(originX, originY, nextEnemies, weaponRange, 0);
-
-          if (!activePrimaryTarget) {
-            break;
-          }
-
-          const targetIndex = nextEnemies.findIndex((enemy) => enemy.id === activePrimaryTarget.id);
-          const enemy = targetIndex >= 0 ? nextEnemies[targetIndex] : null;
-
-          if (!enemy || !enemy.alive) {
-            continue;
-          }
-
-          const critRoll = createSeededRandom(nextSeed);
-          nextSeed = critRoll.seed;
-          const crit = critRoll.value <= critChance;
-          const damage = crit
-            ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
-            : baseDamage;
-          const nextEnemyHp = enemy.hp - damage;
-
-          nextEnemies[targetIndex] = {
-            ...enemy,
-            hp: nextEnemyHp,
-            alive: nextEnemyHp > 0
-          };
-          nextPlayer = {
-            ...nextPlayer,
-            hp: Math.min(
-              nextPlayer.maxHp,
-              nextPlayer.hp + damage * (Math.max(0, nextPlayer.stats.lifeStealPct) / 100)
-            )
-          };
-          hitsLandedThisTick += 1;
-
-          if (nextEnemyHp <= 0) {
-            nextKills += 1;
-            killsThisTick += 1;
-            const drops = createArenaSurvivorEnemyDrops({
-              enemy,
-              materialValue: difficulty.pickupValue,
-              now,
-              seed: nextSeed,
-              luck: nextPlayer.stats.luck
-            });
-            nextSeed = drops.seed;
-            nextPickups.push(...drops.pickups);
-          }
-        }
-
-        const cleaveTargets = collectEnemiesInRange(
-          originX,
-          originY,
-          nextEnemies,
-          weaponRange,
-          0
-        )
-          .filter((enemy) => enemy.id !== primaryTargetId)
-          .slice(0, cleaveTargetCount);
-
-        for (const cleaveTarget of cleaveTargets) {
-          const targetIndex = nextEnemies.findIndex((enemy) => enemy.id === cleaveTarget.id);
-          const enemy = targetIndex >= 0 ? nextEnemies[targetIndex] : null;
-
-          if (!enemy || !enemy.alive) {
-            continue;
-          }
-
-          const critRoll = createSeededRandom(nextSeed);
-          nextSeed = critRoll.seed;
-          const crit = critRoll.value <= critChance;
-          const damage = crit
-            ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
-            : baseDamage;
-          const nextEnemyHp = enemy.hp - damage;
-
-          nextEnemies[targetIndex] = {
-            ...enemy,
-            hp: nextEnemyHp,
-            alive: nextEnemyHp > 0
-          };
-          nextPlayer = {
-            ...nextPlayer,
-            hp: Math.min(
-              nextPlayer.maxHp,
-              nextPlayer.hp + damage * (Math.max(0, nextPlayer.stats.lifeStealPct) / 100)
-            )
-          };
-          hitsLandedThisTick += 1;
-
-          if (nextEnemyHp <= 0) {
-            nextKills += 1;
-            killsThisTick += 1;
-            const drops = createArenaSurvivorEnemyDrops({
-              enemy,
-              materialValue: difficulty.pickupValue,
-              now,
-              seed: nextSeed,
-              luck: nextPlayer.stats.luck
-            });
-            nextSeed = drops.seed;
-            nextPickups.push(...drops.pickups);
-          }
-        }
-
-        shotsFiredThisTick += rapidHitCount + cleaveTargets.length;
+        shotsFiredThisTick += rapidHitCount;
+        nextWeaponStates[weaponIndex] = {
+          ...weaponState,
+          cooldownRemainingMs: cooldownMs,
+          lastFiredAt: state.elapsedMs,
+          lastAimAngleRad: baseAngle,
+          lastAttackReachDistance: attackReachDistance,
+          meleeAttackResolvesAtMs:
+            state.elapsedMs +
+            ARENA_SURVIVOR_MELEE_SWING_DURATION_MS * ARENA_SURVIVOR_MELEE_IMPACT_RATIO
+        };
+        continue;
       }
 
+      const projectileCount = Math.max(
+        1,
+        (levelDefinition.projectileCount ?? 1) + nextPlayer.stats.projectileCountBonus
+      );
+      const spreadRad = projectileCount > 1 ? 0.18 : 0;
+      const projectileSpeed =
+        levelDefinition.projectileSpeed * nextPlayer.stats.projectileSpeedMultiplier;
+
+      for (let index = 0; index < projectileCount; index += 1) {
+        const offsetIndex = index - (projectileCount - 1) / 2;
+        const angle = baseAngle + offsetIndex * spreadRad;
+        const critRoll = createSeededRandom(nextSeed);
+        nextSeed = critRoll.seed;
+        const crit = critRoll.value <= critChance;
+        const damage = crit
+          ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
+          : baseDamage;
+
+        nextProjectiles.push(
+          createArenaSurvivorProjectile({
+            ownerId: nextPlayer.playerId,
+            ownerKind: "player",
+            definitionId: definition.projectileDefinitionId ?? definition.id,
+            originX,
+            originY,
+            angleRad: angle,
+            now,
+            speed: projectileSpeed,
+            damage,
+            maxRange: weaponRange,
+            pierce: Math.max(1, 1 + (levelDefinition.pierce ?? 0) + nextPlayer.stats.pierceBonus),
+            crit
+          })
+        );
+      }
+
+      shotsFiredThisTick += projectileCount;
       nextWeaponStates[weaponIndex] = {
         ...weaponState,
         cooldownRemainingMs: cooldownMs,
         lastFiredAt: state.elapsedMs,
         lastAimAngleRad: baseAngle,
-        lastAttackReachDistance: attackReachDistance
+        lastAttackReachDistance: null,
+        meleeAttackResolvesAtMs: null
       };
     }
 

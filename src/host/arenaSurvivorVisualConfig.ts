@@ -23,16 +23,14 @@ export interface ArenaSurvivorVisualConfig {
     pulseSpeedVarianceMs: number;
   };
   weaponSlots: {
-    orbitMultiplier: number;
-    minOrbitDistance: number;
     spriteDisplaySizeMultiplier: number;
     minSpriteDisplaySize: number;
     fallbackDotRadiusMultiplier: number;
     minFallbackDotRadius: number;
-    meleeLungeDistanceMultiplier: number;
-    meleeLungeMinDistance: number;
-    meleeLungeDurationMs: number;
-    meleeLungePeakRatio: number;
+    meleeSpriteRangeRatio: number;
+    meleeMinSpriteDisplaySize: number;
+    meleeMaxSpriteDisplaySize: number;
+    meleeSpriteTipRatio: number;
   };
 }
 
@@ -60,15 +58,13 @@ export const arenaSurvivorVisualConfig: ArenaSurvivorVisualConfig = {
     pulseSpeedVarianceMs: 60
   },
   weaponSlots: {
-    orbitMultiplier: 2.15,
-    minOrbitDistance: 18,
     spriteDisplaySizeMultiplier: 1.4,
     minSpriteDisplaySize: 16,
     fallbackDotRadiusMultiplier: 0.16,
     minFallbackDotRadius: 2.8,
-    meleeLungeDistanceMultiplier: 1.50,
-    meleeLungeMinDistance: 18,
-    meleeLungeDurationMs: 240,
-    meleeLungePeakRatio: 0.45
+    meleeSpriteRangeRatio: 0.34,
+    meleeMinSpriteDisplaySize: 26,
+    meleeMaxSpriteDisplaySize: 68,
+    meleeSpriteTipRatio: 0.42
   }
 };
