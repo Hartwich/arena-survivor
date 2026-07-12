@@ -49,11 +49,14 @@ export function resolveArenaSurvivorDifficulty(
         (baseSpawnInterval * resolvedTier.spawnIntervalMultiplier) / playerCountMultiplier
       )
     ),
-    maxEnemiesOnScreen: Math.max(
-      8,
-      arenaSurvivorConfig.maxEnemiesOnScreen +
-        Math.min(48, maxEnemiesBonus) +
-        resolvedTier.maxEnemyCountBonus
+    maxEnemiesOnScreen: Math.min(
+      arenaSurvivorConfig.maxActiveEnemies,
+      Math.max(
+        8,
+        arenaSurvivorConfig.baseMaxEnemiesOnScreen +
+          Math.min(48, maxEnemiesBonus) +
+          resolvedTier.maxEnemyCountBonus
+      )
     ),
     pickupValue: arenaSurvivorConfig.pickupValueBase,
     enemyHpMultiplier: resolvedTier.enemyHpMultiplier,

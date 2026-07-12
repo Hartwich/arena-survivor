@@ -177,12 +177,25 @@ function spawnDueIndicators(state: ArenaSurvivorRuntimeState): ArenaSurvivorRunt
     return state;
   }
 
+  const availableEnemySlots = Math.max(
+    0,
+    arenaSurvivorConfig.maxActiveEnemies - state.enemies.length
+  );
+  const spawnableIndicators = dueIndicators.slice(0, availableEnemySlots);
+
+  if (spawnableIndicators.length === 0) {
+    return state;
+  }
+
+  const spawnableIndicatorIds = new Set(
+    spawnableIndicators.map((indicator) => indicator.id)
+  );
   const remainingIndicators = state.spawnIndicators.filter(
-    (indicator) => indicator.spawnAtMs > state.elapsedMs
+    (indicator) => !spawnableIndicatorIds.has(indicator.id)
   );
   const spawnedEnemies = [...state.enemies];
 
-  for (const indicator of dueIndicators) {
+  for (const indicator of spawnableIndicators) {
     spawnedEnemies.push(
       createArenaSurvivorEnemy(
         indicator.definitionId,
@@ -253,11 +266,14 @@ function scheduleRegularSpawnIndicator(
   state: ArenaSurvivorRuntimeState,
   spawnAtMs: number,
   seed: number,
-  difficulty: ReturnType<typeof resolveArenaSurvivorDifficulty>
+  difficulty: ReturnType<typeof resolveArenaSurvivorDifficulty>,
+  preferStrongestUnlocked = false
 ): { indicator: ArenaSurvivorRuntimeSpawnIndicatorState; seed: number } {
   const spawnPoint = createSafeSpawnPoint(state, seed);
   const effectiveWave = Math.max(1, state.waveNumber + difficulty.enemyUnlockWaveBonus);
-  const enemyPick = pickArenaSurvivorEnemyDefinition(effectiveWave, spawnPoint.seed);
+  const enemyPick = pickArenaSurvivorEnemyDefinition(effectiveWave, spawnPoint.seed, {
+    preferStrongestUnlocked
+  });
   const wavesSinceUnlock = Math.max(0, effectiveWave - enemyPick.definition.minWave);
   const waveHpMultiplier =
     1 +
@@ -310,7 +326,15 @@ export function applySpawnSystem(state: ArenaSurvivorRuntimeState): ArenaSurvivo
   ) {
     let nextSeed = nextState.seed;
     const bossIndicators: ArenaSurvivorRuntimeSpawnIndicatorState[] = [];
-    const bossSpawnCount = Math.max(1, difficulty.bossSpawnCount);
+    const availableBossSlots = Math.max(
+      0,
+      difficulty.maxEnemiesOnScreen -
+        (nextState.enemies.length + nextState.spawnIndicators.length)
+    );
+    const bossSpawnCount = Math.min(
+      Math.max(1, difficulty.bossSpawnCount),
+      availableBossSlots
+    );
 
     for (let index = 0; index < bossSpawnCount; index += 1) {
       const bossIndicator = scheduleBossSpawnIndicator(
@@ -344,6 +368,7 @@ export function applySpawnSystem(state: ArenaSurvivorRuntimeState): ArenaSurvivo
       spawnBurst,
       difficulty.maxEnemiesOnScreen - (nextState.enemies.length + nextState.spawnIndicators.length)
     );
+    const useStrongSpawnFallback = spawnCount < spawnBurst;
     let nextSeed = nextState.seed;
     const scheduledIndicators = [...nextState.spawnIndicators];
 
@@ -352,7 +377,8 @@ export function applySpawnSystem(state: ArenaSurvivorRuntimeState): ArenaSurvivo
         nextState,
         nextState.nextEnemySpawnAtMs,
         nextSeed,
-        difficulty
+        difficulty,
+        useStrongSpawnFallback
       );
       nextSeed = scheduledIndicator.seed;
       scheduledIndicators.push(scheduledIndicator.indicator);

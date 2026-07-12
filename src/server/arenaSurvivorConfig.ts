@@ -12,7 +12,8 @@ export interface ArenaSurvivorConfig {
   enemySpawnWarningLeadMs: number;
   enemySpawnForbiddenRadius: number;
   enemySpawnPointAttemptCount: number;
-  maxEnemiesOnScreen: number;
+  baseMaxEnemiesOnScreen: number;
+  maxActiveEnemies: number;
   difficultySpawnIntervalReductionMs: number;
   difficultyMaxEnemiesBonusPerRound: number;
   difficultyEnemyHpMultiplierPerRound: number;
@@ -44,7 +45,8 @@ export const arenaSurvivorConfig: ArenaSurvivorConfig = {
   enemySpawnWarningLeadMs: 1000,
   enemySpawnForbiddenRadius: 180,
   enemySpawnPointAttemptCount: 24,
-  maxEnemiesOnScreen: 32,
+  baseMaxEnemiesOnScreen: 32,
+  maxActiveEnemies: 100,
   difficultySpawnIntervalReductionMs: 32,
   difficultyMaxEnemiesBonusPerRound: 3,
   difficultyEnemyHpMultiplierPerRound: 1.055,

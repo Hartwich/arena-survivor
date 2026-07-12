@@ -65,6 +65,15 @@ npm run pack:dry-run
 
 For visual checks, start Open Party Lab, add virtual controllers when needed, and capture host screenshots through a browser.
 
+## Spawn Limits
+
+Enemy pressure uses two configurable limits in `src/server/arenaSurvivorConfig.ts`:
+
+- `baseMaxEnemiesOnScreen` is the wave- and difficulty-scaled pacing limit.
+- `maxActiveEnemies` is the absolute safety cap and defaults to 100.
+
+Active enemies never exceed the hard cap. Due spawn indicators remain queued until a slot opens. When a regular spawn burst is shortened because the pacing limit has nearly been reached, the remaining slots use the strongest currently unlocked enemy pool instead of adding more low-tier enemies.
+
 ## License
 
 Code is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
