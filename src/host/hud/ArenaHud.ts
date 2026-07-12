@@ -83,19 +83,41 @@ export function createArenaHud(): ArenaHud {
   metaBar.style.top = "14px";
   metaBar.style.transform = "translateX(-50%)";
   metaBar.style.padding = "7px 12px";
-  metaBar.style.fontSize = "13px";
+  metaBar.style.width = "min(430px, 44vw)";
+  metaBar.style.display = "grid";
+  metaBar.style.gap = "5px";
+  metaBar.style.fontSize = "14px";
   metaBar.style.fontWeight = "800";
   metaBar.style.letterSpacing = "0.01em";
   metaBar.style.whiteSpace = "nowrap";
+  metaBar.style.textAlign = "center";
   applyPanelChrome(metaBar);
+
+  const metaText = document.createElement("div");
+
+  const roundProgressTrack = document.createElement("div");
+  roundProgressTrack.style.height = "4px";
+  roundProgressTrack.style.borderRadius = "999px";
+  roundProgressTrack.style.background = "rgba(51, 65, 85, 0.9)";
+  roundProgressTrack.style.overflow = "hidden";
+
+  const roundProgressFill = document.createElement("div");
+  roundProgressFill.style.height = "100%";
+  roundProgressFill.style.width = "0%";
+  roundProgressFill.style.borderRadius = "999px";
+  roundProgressFill.style.background = "linear-gradient(90deg, #38bdf8, #22c55e)";
+  roundProgressFill.style.transition = "width 120ms linear";
+  roundProgressTrack.appendChild(roundProgressFill);
+  metaBar.appendChild(metaText);
+  metaBar.appendChild(roundProgressTrack);
 
   const playerCards = cornerAnchors.map((anchor) => {
     const card = document.createElement("section");
     card.style.position = "absolute";
-    card.style.width = "min(132px, calc(50vw - 28px))";
-    card.style.padding = "10px 12px 12px";
+    card.style.width = "min(176px, calc(50vw - 32px))";
+    card.style.padding = "11px 13px 13px";
     card.style.display = "grid";
-    card.style.gap = "5px";
+    card.style.gap = "7px";
     card.style.visibility = "hidden";
     applyPanelChrome(card);
 
@@ -118,7 +140,7 @@ export function createArenaHud(): ArenaHud {
     titleRow.style.gap = "6px";
 
     const title = document.createElement("div");
-    title.style.fontSize = "13px";
+    title.style.fontSize = "15px";
     title.style.fontWeight = "900";
     title.style.lineHeight = "1.2";
     title.style.overflow = "hidden";
@@ -126,7 +148,7 @@ export function createArenaHud(): ArenaHud {
     title.style.whiteSpace = "nowrap";
 
     const materialBadge = document.createElement("div");
-    materialBadge.style.fontSize = "10px";
+    materialBadge.style.fontSize = "11px";
     materialBadge.style.fontWeight = "800";
     materialBadge.style.color = "#e2e8f0";
     materialBadge.style.padding = "2px 7px";
@@ -139,9 +161,54 @@ export function createArenaHud(): ArenaHud {
     titleRow.appendChild(materialBadge);
 
     const subline = document.createElement("div");
-    subline.style.fontSize = "10px";
+    subline.style.fontSize = "11px";
     subline.style.color = "#cbd5e1";
     subline.style.lineHeight = "1.35";
+    subline.style.overflow = "hidden";
+    subline.style.textOverflow = "ellipsis";
+    subline.style.whiteSpace = "nowrap";
+
+    const progressionRow = document.createElement("div");
+    progressionRow.style.display = "grid";
+    progressionRow.style.gridTemplateColumns = "auto 1fr";
+    progressionRow.style.alignItems = "center";
+    progressionRow.style.gap = "7px";
+
+    const levelBadge = document.createElement("div");
+    levelBadge.style.padding = "4px 7px";
+    levelBadge.style.borderRadius = "8px";
+    levelBadge.style.background = "rgba(14, 116, 144, 0.72)";
+    levelBadge.style.fontSize = "11px";
+    levelBadge.style.fontWeight = "900";
+
+    const xpTrack = document.createElement("div");
+    xpTrack.style.position = "relative";
+    xpTrack.style.height = "14px";
+    xpTrack.style.borderRadius = "999px";
+    xpTrack.style.background = "#1e293b";
+    xpTrack.style.overflow = "hidden";
+
+    const xpFill = document.createElement("div");
+    xpFill.style.height = "100%";
+    xpFill.style.width = "0%";
+    xpFill.style.borderRadius = "999px";
+    xpFill.style.background = "linear-gradient(90deg, #0ea5e9, #22d3ee)";
+    xpFill.style.transition = "width 120ms linear";
+
+    const xpLabel = document.createElement("div");
+    xpLabel.style.position = "absolute";
+    xpLabel.style.inset = "0";
+    xpLabel.style.display = "flex";
+    xpLabel.style.alignItems = "center";
+    xpLabel.style.justifyContent = "center";
+    xpLabel.style.fontSize = "9px";
+    xpLabel.style.fontWeight = "900";
+    xpLabel.style.textShadow = "0 1px 2px rgba(2, 6, 23, 0.9)";
+
+    xpTrack.appendChild(xpFill);
+    xpTrack.appendChild(xpLabel);
+    progressionRow.appendChild(levelBadge);
+    progressionRow.appendChild(xpTrack);
 
     const hpRow = document.createElement("div");
     hpRow.style.display = "grid";
@@ -152,14 +219,14 @@ export function createArenaHud(): ArenaHud {
     hpLabel.style.display = "flex";
     hpLabel.style.alignItems = "center";
     hpLabel.style.justifyContent = "center";
-    hpLabel.style.fontSize = "10px";
+    hpLabel.style.fontSize = "11px";
     hpLabel.style.fontWeight = "800";
     hpLabel.style.color = "#e2e8f0";
     hpLabel.style.textShadow = "0 1px 2px rgba(2, 6, 23, 0.85)";
 
     const hpTrack = document.createElement("div");
     hpTrack.style.position = "relative";
-    hpTrack.style.height = "12px";
+    hpTrack.style.height = "16px";
     hpTrack.style.borderRadius = "999px";
     hpTrack.style.background = "#1e293b";
     hpTrack.style.overflow = "hidden";
@@ -177,6 +244,7 @@ export function createArenaHud(): ArenaHud {
 
     card.appendChild(titleRow);
     card.appendChild(subline);
+    card.appendChild(progressionRow);
     card.appendChild(hpRow);
 
     overlay.appendChild(card);
@@ -186,6 +254,9 @@ export function createArenaHud(): ArenaHud {
       title,
       materialBadge,
       subline,
+      levelBadge,
+      xpFill,
+      xpLabel,
       hpLabel,
       hpFill
     };
@@ -233,12 +304,20 @@ export function createArenaHud(): ArenaHud {
         ? `${en ? "Time" : "Zeit"} ${formatTime(state.remainingMs)}`
         : `${en ? "Survived" : "Ueberlebt"} ${formatTime(state?.elapsedMs ?? 0)}`;
     const runningRound = state?.result.outcome === "running";
+    const roundDurationMs = state ? state.elapsedMs + state.remainingMs : 0;
+    const roundProgress = state
+      ? runningRound && roundDurationMs > 0
+        ? Math.max(0, Math.min(1, state.elapsedMs / roundDurationMs))
+        : 1
+      : 0;
 
-    metaBar.textContent = state
+    metaText.textContent = state
       ? runningRound
         ? `${timeLabel}   |   ${en ? "Wave" : "Welle"} ${state.waveNumber}   |   ${en ? "Enemies" : "Gegner"} ${state.enemies.length}`
         : `${timeLabel}   |   ${en ? "Wave" : "Welle"} ${state.waveNumber}   |   ${en ? "Ready" : "Bereit"} ${readyCount}/${playerCount}`
       : "Arena Survivor";
+    roundProgressFill.style.width = `${Math.round(roundProgress * 100)}%`;
+    roundProgressTrack.style.opacity = state ? "1" : "0";
 
     for (let index = 0; index < playerCards.length; index += 1) {
       const card = playerCards[index];
@@ -252,14 +331,20 @@ export function createArenaHud(): ArenaHud {
       const hpRatio = player.maxHp > 0 ? Math.max(0, Math.min(1, player.hp / player.maxHp)) : 0;
       const borderColor = player.color;
       const hpColor = hpRatio > 0.5 ? "#22c55e" : hpRatio > 0.25 ? "#f59e0b" : "#ef4444";
+      const experienceRatio = player.experienceToNextLevel > 0
+        ? Math.max(0, Math.min(1, player.experience / player.experienceToNextLevel))
+        : 0;
 
       card.card.style.visibility = "visible";
       card.card.style.borderColor = borderColor;
       card.title.textContent = player.name;
       card.title.title = `${player.name} (${player.character.name})`;
       card.materialBadge.textContent = `M ${player.materials}`;
-      card.subline.textContent = player.alive ? "" : "KO";
-      card.subline.style.display = player.alive ? "none" : "block";
+      card.subline.textContent = `${player.character.name}${player.alive ? "" : " - KO"}`;
+      card.subline.style.color = player.alive ? "#cbd5e1" : "#fca5a5";
+      card.levelBadge.textContent = `${en ? "LV" : "LV"} ${player.level}`;
+      card.xpLabel.textContent = `XP ${Math.round(player.experience)} / ${Math.round(player.experienceToNextLevel)}`;
+      card.xpFill.style.width = `${Math.round(experienceRatio * 100)}%`;
       card.hpLabel.textContent = `HP ${formatRoundedHp(player.hp)} / ${formatRoundedHp(player.maxHp)}`;
       card.hpFill.style.width = `${Math.round(hpRatio * 100)}%`;
       card.hpFill.style.background = hpColor;
@@ -288,7 +373,18 @@ export function createArenaHud(): ArenaHud {
         const title = document.createElement("div");
         title.style.fontSize = "16px";
         title.style.fontWeight = "900";
-        title.textContent = `${player.name}  |  ${player.character.name}  |  M ${player.materials}`;
+        title.textContent = `${player.name}  |  ${player.character.name}  |  LV ${player.level}  |  M ${player.materials}`;
+
+        const performanceLine = document.createElement("div");
+        performanceLine.style.fontSize = "14px";
+        performanceLine.style.fontWeight = "900";
+        performanceLine.style.color = "#67e8f9";
+        const survivedSeconds = Math.max(0.001, player.runStats.survivedMs / 1000);
+        const damagePerSecond = player.runStats.damageDealt / survivedSeconds;
+        performanceLine.textContent =
+          `${en ? "Kills" : "Kills"} ${player.runStats.kills}  |  ` +
+          `${en ? "DPS" : "DPS"} ${Math.round(damagePerSecond * 10) / 10}  |  ` +
+          `${en ? "Damage" : "Schaden"} ${Math.round(player.runStats.damageDealt)}`;
 
         const weaponLine = document.createElement("div");
         weaponLine.style.fontSize = "13px";
@@ -314,6 +410,7 @@ export function createArenaHud(): ArenaHud {
             : en ? "No items" : "Keine Items";
 
         card.appendChild(title);
+        card.appendChild(performanceLine);
         card.appendChild(weaponLine);
         card.appendChild(statsLine);
         card.appendChild(itemsLine);

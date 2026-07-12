@@ -235,6 +235,8 @@ function rebuildPlayersForNextWave(
         ? {
           continuedRun: true,
           characterId: previousPlayer.character.id,
+          level: previousPlayer.level,
+          experience: previousPlayer.experience,
           materials: previousPlayer.materials,
           loadout: previousPlayer.loadout,
           runSummary: previousPlayer.runSummary

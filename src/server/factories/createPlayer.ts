@@ -18,6 +18,7 @@ import {
   createEmptyRunStats,
   createEmptyShopState
 } from "../arenaSurvivorState.js";
+import { resolveArenaSurvivorExperienceToNextLevel } from "../progression/arenaSurvivorProgression.js";
 
 export interface ArenaSurvivorSpawnPoint {
   x: number;
@@ -36,6 +37,7 @@ export function createArenaSurvivorPlayer(
 ): ArenaSurvivorRuntimePlayerState {
   const character = resolveArenaSurvivorCharacter(characterId ?? carry?.characterId, playerIndex);
   const playerStats = resolveArenaSurvivorPlayerStats(loadout, character.id);
+  const level = Math.max(1, Math.floor(carry?.level ?? 1));
 
   return {
     playerId: player.id,
@@ -55,6 +57,9 @@ export function createArenaSurvivorPlayer(
     invulnerableUntilMs: now + 600,
     weaponRuntimeStates: createArenaSurvivorWeaponRuntimeStates(loadout),
     stats: playerStats,
+    level,
+    experience: Math.max(0, carry?.experience ?? 0),
+    experienceToNextLevel: resolveArenaSurvivorExperienceToNextLevel(level),
     materials: carry?.materials ?? 0,
     loadout: cloneLoadout(loadout),
     shop: createEmptyShopState(),

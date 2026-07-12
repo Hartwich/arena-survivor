@@ -8,6 +8,7 @@ import type {
   ArenaSurvivorRuntimeState
 } from "../arenaSurvivorState.js";
 import type { ArenaSurvivorCollisionReport } from "./collisionSystem.js";
+import { awardArenaSurvivorEnemyExperience } from "../progression/arenaSurvivorProgression.js";
 
 function resolveContactDamage(rawDamage: number, armor: number): number {
   if (armor >= 0) {
@@ -65,19 +66,21 @@ export function applyDamageSystem(
       continue;
     }
 
-    const nextEnemyHp = enemy.hp - projectile.damage;
+    const appliedDamage = Math.min(enemy.hp, projectile.damage);
+    const nextEnemyHp = enemy.hp - appliedDamage;
     const owner = playersById.get(projectile.ownerId);
 
     if (owner) {
       const lifeStealAmount =
-        projectile.damage * (Math.max(0, owner.stats.lifeStealPct) / 100);
+        appliedDamage * (Math.max(0, owner.stats.lifeStealPct) / 100);
 
       playersById.set(owner.playerId, {
         ...owner,
         hp: Math.min(owner.maxHp, owner.hp + lifeStealAmount),
         runStats: {
           ...owner.runStats,
-          hitsLanded: owner.runStats.hitsLanded + 1
+          hitsLanded: owner.runStats.hitsLanded + 1,
+          damageDealt: owner.runStats.damageDealt + appliedDamage
         }
       });
     }
@@ -117,11 +120,12 @@ export function applyDamageSystem(
         const updatedOwner = playersById.get(owner.playerId);
 
         if (updatedOwner) {
+          const rewardedOwner = awardArenaSurvivorEnemyExperience(updatedOwner, enemy);
           playersById.set(owner.playerId, {
-            ...updatedOwner,
+            ...rewardedOwner,
             runStats: {
-              ...updatedOwner.runStats,
-              kills: updatedOwner.runStats.kills + 1
+              ...rewardedOwner.runStats,
+              kills: rewardedOwner.runStats.kills + 1
             }
           });
         }

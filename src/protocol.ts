@@ -517,6 +517,7 @@ export interface ArenaSurvivorShopState {
 
 export interface ArenaSurvivorRunStats {
   kills: number;
+  damageDealt: number;
   materialsCollected: number;
   survivedMs: number;
   shotsFired: number;
@@ -527,6 +528,7 @@ export interface ArenaSurvivorRunStats {
 export interface ArenaSurvivorRunSummary {
   wavesCleared: number;
   totalKills: number;
+  totalDamageDealt: number;
   totalMaterialsCollected: number;
   totalSurvivedMs: number;
   totalShotsFired: number;
@@ -559,6 +561,9 @@ export interface ArenaSurvivorPlayerState {
   invulnerableUntilMs: number;
   weaponRuntimeStates: ArenaSurvivorWeaponRuntimeState[];
   stats: ArenaSurvivorPlayerStats;
+  level: number;
+  experience: number;
+  experienceToNextLevel: number;
   materials: number;
   loadout: ArenaSurvivorLoadoutState;
   shop: ArenaSurvivorShopState;
