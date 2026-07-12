@@ -10,6 +10,7 @@ import type {
   ArenaSurvivorRunSummary,
   ArenaSurvivorShopState,
   ArenaSurvivorSpawnIndicatorState,
+  ArenaSurvivorStatModifiers,
   ArenaSurvivorState as PublicArenaSurvivorState,
   ArenaSurvivorWeaponRuntimeState
 } from "../protocol.js";
@@ -78,6 +79,8 @@ export interface ArenaSurvivorPlayerCarryState {
   characterId?: string;
   level: number;
   experience: number;
+  pendingLevelUpChoices: number;
+  levelBonusModifiers: ArenaSurvivorStatModifiers[];
   materials: number;
   loadout: ArenaSurvivorLoadoutState;
   runSummary: ArenaSurvivorRunSummary;
@@ -160,6 +163,7 @@ export function cloneLoadout(loadout: ArenaSurvivorLoadoutState): ArenaSurvivorL
 
 export function createEmptyShopState(): ArenaSurvivorShopState {
   return {
+    mode: "regular",
     available: false,
     offers: [],
     rerollCount: 0,

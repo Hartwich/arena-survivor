@@ -43,6 +43,7 @@ import {
   type ArenaSurvivorRuntimeState
 } from "../arenaSurvivorState.js";
 import { createId } from "../utils/createId.js";
+import { createArenaSurvivorLevelUpShopState } from "../progression/arenaSurvivorLevelBonuses.js";
 
 export interface ArenaSurvivorRunCarryResolution {
   continuedRun: boolean;
@@ -539,7 +540,8 @@ export function createArenaSurvivorWeaponRuntimeStates(
 
 export function resolveArenaSurvivorPlayerStats(
   loadout: ArenaSurvivorLoadoutState,
-  characterId?: string
+  characterId?: string,
+  levelBonusModifiers: ArenaSurvivorStatModifiers[] = []
 ): ArenaSurvivorPlayerStats {
   const character = sanitizeCharacter(characterId, 0);
   let maxHpBonus = 0;
@@ -601,6 +603,10 @@ export function resolveArenaSurvivorPlayerStats(
     applyModifiers(levelDefinition.modifiers);
   }
 
+  for (const modifiers of levelBonusModifiers) {
+    applyModifiers(modifiers);
+  }
+
   const moveSpeed = Math.max(60, arenaSurvivorPlayerDefinition.moveSpeed * moveSpeedMultiplier);
   const pickupRadius = Math.max(
     8,
@@ -656,6 +662,8 @@ function resolveCarryForPlayer(
     characterId: previousPlayer.character.id,
     level: previousPlayer.level,
     experience: previousPlayer.experience,
+    pendingLevelUpChoices: previousPlayer.pendingLevelUpChoices,
+    levelBonusModifiers: previousPlayer.levelBonusModifiers.map((modifiers) => ({ ...modifiers })),
     materials: previousPlayer.materials,
     loadout: cloneLoadout(previousPlayer.loadout),
     runSummary: cloneRunSummary(previousPlayer.runSummary)
@@ -676,6 +684,8 @@ export function resolveArenaSurvivorRunCarry(
         characterId: arenaSurvivorCharacterDefinitions[index % arenaSurvivorCharacterDefinitions.length]?.id,
         level: 1,
         experience: 0,
+        pendingLevelUpChoices: 0,
+        levelBonusModifiers: [],
         materials: 0,
         loadout: createArenaSurvivorStarterLoadout(
           arenaSurvivorCharacterDefinitions[index % arenaSurvivorCharacterDefinitions.length]?.id
@@ -698,6 +708,8 @@ export function resolveArenaSurvivorRunCarry(
           characterId: arenaSurvivorCharacterDefinitions[index % arenaSurvivorCharacterDefinitions.length]?.id,
           level: 1,
           experience: 0,
+          pendingLevelUpChoices: 0,
+          levelBonusModifiers: [],
           materials: 0,
           loadout: createArenaSurvivorStarterLoadout(
             arenaSurvivorCharacterDefinitions[index % arenaSurvivorCharacterDefinitions.length]?.id
@@ -939,7 +951,7 @@ function buildShopOffersForPlayer(
   };
 }
 
-function createArenaSurvivorShopStateForPlayer(
+export function createArenaSurvivorShopStateForPlayer(
   player: ArenaSurvivorRuntimePlayerState,
   waveNumber: number,
   rerollCount: number,
@@ -953,6 +965,7 @@ function createArenaSurvivorShopStateForPlayer(
   return {
     seed: offerResolution.seed,
     shop: {
+      mode: "regular",
       available: offerResolution.offers.length > 0,
       offers: offerResolution.offers,
       message:
@@ -1010,7 +1023,9 @@ export function createArenaSurvivorShopsForPlayers(
   const shopsByPlayerId = new Map<string, ArenaSurvivorShopState>();
 
   for (const player of players) {
-    const shopResolution = createArenaSurvivorShopStateForPlayer(player, waveNumber, 0, nextSeed, language);
+    const shopResolution = player.pendingLevelUpChoices > 0
+      ? createArenaSurvivorLevelUpShopState(player, nextSeed, language)
+      : createArenaSurvivorShopStateForPlayer(player, waveNumber, 0, nextSeed, language);
     nextSeed = shopResolution.seed;
     shopsByPlayerId.set(player.playerId, shopResolution.shop);
   }
@@ -1094,6 +1109,47 @@ export function applyArenaSurvivorShopPurchase(
     return state;
   }
 
+  if (
+    offer.kind === "upgrade" &&
+    player.shop.mode === "level_up" &&
+    player.pendingLevelUpChoices > 0 &&
+    offer.levelBonusModifiers
+  ) {
+    const levelBonusModifiers = [
+      ...player.levelBonusModifiers.map((modifiers) => ({ ...modifiers })),
+      { ...offer.levelBonusModifiers }
+    ];
+    const pendingLevelUpChoices = player.pendingLevelUpChoices - 1;
+    const nextStats = resolveArenaSurvivorPlayerStats(
+      player.loadout,
+      player.character.id,
+      levelBonusModifiers
+    );
+    const bonusPlayer: ArenaSurvivorRuntimePlayerState = {
+      ...player,
+      pendingLevelUpChoices,
+      levelBonusModifiers,
+      moveSpeed: nextStats.moveSpeed,
+      maxHp: nextStats.maxHp,
+      hp: Math.min(nextStats.maxHp, player.hp + Math.max(0, nextStats.maxHp - player.maxHp)),
+      stats: nextStats
+    };
+    const shopResolution = pendingLevelUpChoices > 0
+      ? createArenaSurvivorLevelUpShopState(bonusPlayer, state.seed, state.language)
+      : createArenaSurvivorShopStateForPlayer(bonusPlayer, state.waveNumber, 0, state.seed, state.language);
+    const nextPlayers = [...state.players];
+    nextPlayers[playerIndex] = {
+      ...bonusPlayer,
+      shop: shopResolution.shop
+    };
+
+    return {
+      ...state,
+      seed: shopResolution.seed,
+      players: nextPlayers
+    };
+  }
+
   const nextLoadout = cloneLoadout(player.loadout);
   let purchaseApplied = false;
 
@@ -1146,7 +1202,11 @@ export function applyArenaSurvivorShopPurchase(
   nextLoadout.items.sort((left, right) => left.displayName.localeCompare(right.displayName));
 
   const nextMaterials = player.materials - offer.cost;
-  const nextStats = resolveArenaSurvivorPlayerStats(nextLoadout, player.character.id);
+  const nextStats = resolveArenaSurvivorPlayerStats(
+    nextLoadout,
+    player.character.id,
+    player.levelBonusModifiers
+  );
   const nextShopOffers = refreshArenaSurvivorShopOffers(
     nextLoadout,
     player.shop.offers.map((entry) => {
@@ -1224,7 +1284,11 @@ export function applyArenaSurvivorShopSell(
   nextLoadout.weapons.splice(weaponIndex, 1);
 
   const nextMaterials = player.materials + sellValue;
-  const nextStats = resolveArenaSurvivorPlayerStats(nextLoadout, player.character.id);
+  const nextStats = resolveArenaSurvivorPlayerStats(
+    nextLoadout,
+    player.character.id,
+    player.levelBonusModifiers
+  );
   const nextOffers = refreshArenaSurvivorShopOffers(
     nextLoadout,
     player.shop.offers,
@@ -1304,7 +1368,11 @@ export function applyArenaSurvivorShopCombine(
       weapon.weaponInstanceId === selectedWeapon.weaponInstanceId ? upgradedWeapon : weapon
     );
 
-  const nextStats = resolveArenaSurvivorPlayerStats(nextLoadout, player.character.id);
+  const nextStats = resolveArenaSurvivorPlayerStats(
+    nextLoadout,
+    player.character.id,
+    player.levelBonusModifiers
+  );
   const nextOffers = refreshArenaSurvivorShopOffers(
     nextLoadout,
     player.shop.offers,

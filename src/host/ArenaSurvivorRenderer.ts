@@ -590,24 +590,29 @@ export function drawArenaSurvivorPlayerHealthBars(
     const hpRatio = player.maxHp > 0
       ? Phaser.Math.Clamp(player.hp / player.maxHp, 0, 1)
       : 0;
-    const width = Phaser.Math.Clamp(displayRadius * 2.1, 36, 74);
-    const height = 6;
+
+    if (hpRatio >= 0.999) {
+      continue;
+    }
+
+    const width = Phaser.Math.Clamp(displayRadius * 1.55, 28, 50);
+    const height = 4;
     const left = playerPosition.x - width / 2;
-    const top = playerPosition.y - displayRadius - 11;
+    const top = playerPosition.y - displayRadius - 5;
     const fillColor = hpRatio > 0.5 ? 0x22c55e : hpRatio > 0.25 ? 0xf59e0b : 0xef4444;
 
     graphics.fillStyle(0x020617, 0.88);
-    graphics.fillRoundedRect(left - 2, top - 2, width + 4, height + 4, 4);
+    graphics.fillRoundedRect(left - 1, top - 1, width + 2, height + 2, 3);
     graphics.fillStyle(0x1e293b, 0.96);
-    graphics.fillRoundedRect(left, top, width, height, 3);
+    graphics.fillRoundedRect(left, top, width, height, 2);
 
     if (hpRatio > 0) {
       graphics.fillStyle(fillColor, 1);
-      graphics.fillRoundedRect(left, top, width * hpRatio, height, 3);
+      graphics.fillRoundedRect(left, top, width * hpRatio, height, 2);
     }
 
     graphics.lineStyle(1, 0xe2e8f0, 0.55);
-    graphics.strokeRoundedRect(left, top, width, height, 3);
+    graphics.strokeRoundedRect(left, top, width, height, 2);
   }
 }
 
