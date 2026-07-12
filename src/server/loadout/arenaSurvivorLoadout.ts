@@ -654,6 +654,8 @@ function resolveCarryForPlayer(
     playerId,
     continuedRun: true,
     characterId: previousPlayer.character.id,
+    level: previousPlayer.level,
+    experience: previousPlayer.experience,
     materials: previousPlayer.materials,
     loadout: cloneLoadout(previousPlayer.loadout),
     runSummary: cloneRunSummary(previousPlayer.runSummary)
@@ -672,6 +674,8 @@ export function resolveArenaSurvivorRunCarry(
         playerId,
         continuedRun: false,
         characterId: arenaSurvivorCharacterDefinitions[index % arenaSurvivorCharacterDefinitions.length]?.id,
+        level: 1,
+        experience: 0,
         materials: 0,
         loadout: createArenaSurvivorStarterLoadout(
           arenaSurvivorCharacterDefinitions[index % arenaSurvivorCharacterDefinitions.length]?.id
@@ -692,6 +696,8 @@ export function resolveArenaSurvivorRunCarry(
           playerId,
           continuedRun: false,
           characterId: arenaSurvivorCharacterDefinitions[index % arenaSurvivorCharacterDefinitions.length]?.id,
+          level: 1,
+          experience: 0,
           materials: 0,
           loadout: createArenaSurvivorStarterLoadout(
             arenaSurvivorCharacterDefinitions[index % arenaSurvivorCharacterDefinitions.length]?.id

@@ -76,6 +76,8 @@ export interface ArenaSurvivorRuntimeState extends BaseRoundState {
 export interface ArenaSurvivorPlayerCarryState {
   continuedRun: boolean;
   characterId?: string;
+  level: number;
+  experience: number;
   materials: number;
   loadout: ArenaSurvivorLoadoutState;
   runSummary: ArenaSurvivorRunSummary;
@@ -169,6 +171,7 @@ export function createEmptyShopState(): ArenaSurvivorShopState {
 export function createEmptyRunStats(): ArenaSurvivorRunStats {
   return {
     kills: 0,
+    damageDealt: 0,
     materialsCollected: 0,
     survivedMs: 0,
     shotsFired: 0,
@@ -181,6 +184,7 @@ export function createEmptyRunSummary(): ArenaSurvivorRunSummary {
   return {
     wavesCleared: 0,
     totalKills: 0,
+    totalDamageDealt: 0,
     totalMaterialsCollected: 0,
     totalSurvivedMs: 0,
     totalShotsFired: 0,

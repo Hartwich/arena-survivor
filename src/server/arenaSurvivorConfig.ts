@@ -14,6 +14,11 @@ export interface ArenaSurvivorConfig {
   enemySpawnPointAttemptCount: number;
   baseMaxEnemiesOnScreen: number;
   maxActiveEnemies: number;
+  experienceBaseReward: number;
+  experienceRewardPerUnlockWave: number;
+  bossExperienceMultiplier: number;
+  experienceToNextLevelBase: number;
+  experienceToNextLevelGrowth: number;
   difficultySpawnIntervalReductionMs: number;
   difficultyMaxEnemiesBonusPerRound: number;
   difficultyEnemyHpMultiplierPerRound: number;
@@ -47,6 +52,11 @@ export const arenaSurvivorConfig: ArenaSurvivorConfig = {
   enemySpawnPointAttemptCount: 24,
   baseMaxEnemiesOnScreen: 32,
   maxActiveEnemies: 100,
+  experienceBaseReward: 4,
+  experienceRewardPerUnlockWave: 2,
+  bossExperienceMultiplier: 5,
+  experienceToNextLevelBase: 24,
+  experienceToNextLevelGrowth: 1.35,
   difficultySpawnIntervalReductionMs: 32,
   difficultyMaxEnemiesBonusPerRound: 3,
   difficultyEnemyHpMultiplierPerRound: 1.055,

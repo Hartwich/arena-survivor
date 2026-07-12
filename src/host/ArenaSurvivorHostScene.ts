@@ -5,6 +5,7 @@ import {
   applyArenaSurvivorCamera,
   drawArenaSurvivorBackground,
   drawArenaSurvivorEntities,
+  drawArenaSurvivorPlayerHealthBars,
   resolveArenaSurvivorRenderMeta,
   syncArenaSurvivorSpriteLayer
 } from "./ArenaSurvivorRenderer.js";
@@ -28,6 +29,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
   private arenaBackground?: Phaser.GameObjects.Image;
   private arenaGraphics?: Phaser.GameObjects.Graphics;
   private entityGraphics?: Phaser.GameObjects.Graphics;
+  private playerHealthGraphics?: Phaser.GameObjects.Graphics;
   private hud?: ReturnType<typeof createArenaHud>;
   private spriteLayer = createArenaSurvivorSpriteLayer();
   private lastRoundNumber: number | null = null;
@@ -50,12 +52,13 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     this.arenaBackground.setVisible(false);
     this.arenaGraphics = this.add.graphics();
     this.entityGraphics = this.add.graphics();
+    this.playerHealthGraphics = this.add.graphics().setDepth(12);
     this.hud = createArenaHud();
 
     this.unsubscribe = client.subscribe((state) => {
       const gameState = (state.game?.state ?? null) as ArenaSurvivorState | null;
 
-      if (!this.arenaGraphics || !this.entityGraphics || !this.hud) {
+      if (!this.arenaGraphics || !this.entityGraphics || !this.playerHealthGraphics || !this.hud) {
         return;
       }
 
@@ -63,6 +66,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
         this.arenaBackground?.setVisible(false);
         this.arenaGraphics.clear();
         this.entityGraphics.clear();
+        this.playerHealthGraphics.clear();
         for (const playerSprite of this.spriteLayer.playerSprites.values()) {
           playerSprite.setVisible(false);
         }
@@ -97,6 +101,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       }
 
       drawArenaSurvivorEntities(this, this.entityGraphics, gameState, meta);
+      drawArenaSurvivorPlayerHealthBars(this.playerHealthGraphics, gameState);
       syncArenaSurvivorSpriteLayer(this, this.spriteLayer, gameState, meta);
       this.hud.update(gameState, state.room);
     });
@@ -110,6 +115,8 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       this.arenaGraphics = undefined;
       this.entityGraphics?.destroy();
       this.entityGraphics = undefined;
+      this.playerHealthGraphics?.destroy();
+      this.playerHealthGraphics = undefined;
       for (const enemySprite of this.spriteLayer.enemySprites.values()) {
         enemySprite.destroy();
       }

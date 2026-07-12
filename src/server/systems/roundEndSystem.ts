@@ -66,6 +66,7 @@ export function resolveRoundEndSystem(
       ...player.runSummary,
       wavesCleared: player.runSummary.wavesCleared + (survived ? 1 : 0),
       totalKills: player.runSummary.totalKills + player.runStats.kills,
+      totalDamageDealt: player.runSummary.totalDamageDealt + player.runStats.damageDealt,
       totalMaterialsCollected: player.runSummary.totalMaterialsCollected + player.runStats.materialsCollected,
       totalSurvivedMs: player.runSummary.totalSurvivedMs + player.runStats.survivedMs,
       totalShotsFired: player.runSummary.totalShotsFired + player.runStats.shotsFired,

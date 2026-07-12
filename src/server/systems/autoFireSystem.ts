@@ -17,6 +17,7 @@ import { createArenaSurvivorProjectile } from "../factories/createProjectile.js"
 import { resolveArenaSurvivorDifficulty } from "../difficulty/arenaSurvivorDifficulty.js";
 import { resolveArenaSurvivorWeaponLevel } from "../loadout/arenaSurvivorLoadout.js";
 import type { ArenaSurvivorWeaponDamageScaling } from "../content/types.js";
+import { awardArenaSurvivorEnemyExperience } from "../progression/arenaSurvivorProgression.js";
 
 function resolveStatScalingMultiplier(
   scaling: ArenaSurvivorWeaponDamageScaling | undefined,
@@ -141,6 +142,7 @@ export function applyAutoFireSystem(
     }));
     let shotsFiredThisTick = 0;
     let hitsLandedThisTick = 0;
+    let damageDealtThisTick = 0;
     let killsThisTick = 0;
     let nextPlayer = {
       ...player
@@ -222,21 +224,24 @@ export function applyAutoFireSystem(
             const damage = crit
               ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
               : baseDamage;
-            const nextEnemyHp = enemy.hp - damage;
+            const appliedDamage = Math.min(enemy.hp, damage);
+            const nextEnemyHp = enemy.hp - appliedDamage;
 
             nextEnemies[targetIndex] = { ...enemy, hp: nextEnemyHp, alive: nextEnemyHp > 0 };
             nextPlayer = {
               ...nextPlayer,
               hp: Math.min(
                 nextPlayer.maxHp,
-                nextPlayer.hp + damage * (Math.max(0, nextPlayer.stats.lifeStealPct) / 100)
+                nextPlayer.hp + appliedDamage * (Math.max(0, nextPlayer.stats.lifeStealPct) / 100)
               )
             };
             hitsLandedThisTick += 1;
+            damageDealtThisTick += appliedDamage;
 
             if (nextEnemyHp <= 0) {
               nextKills += 1;
               killsThisTick += 1;
+              nextPlayer = awardArenaSurvivorEnemyExperience(nextPlayer, enemy);
               const drops = createArenaSurvivorEnemyDrops({
                 enemy,
                 materialValue: difficulty.pickupValue,
@@ -396,6 +401,7 @@ export function applyAutoFireSystem(
         ...player.runStats,
         shotsFired: player.runStats.shotsFired + shotsFiredThisTick,
         hitsLanded: player.runStats.hitsLanded + hitsLandedThisTick,
+        damageDealt: player.runStats.damageDealt + damageDealtThisTick,
         kills: player.runStats.kills + killsThisTick
       }
     };
