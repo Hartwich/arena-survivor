@@ -487,7 +487,7 @@ export interface ArenaSurvivorLoadoutState {
 
 export interface ArenaSurvivorShopOfferState {
   id: string;
-  kind: "item" | "weapon";
+  kind: "item" | "weapon" | "upgrade";
   title: string;
   description: string;
   cost: number;
@@ -497,6 +497,7 @@ export interface ArenaSurvivorShopOfferState {
   itemId?: string;
   weaponId?: string;
   targetWeaponInstanceId?: string;
+  levelBonusModifiers?: ArenaSurvivorStatModifiers;
   iconPath?: string;
   tags?: string[];
   summary?: string;
@@ -507,6 +508,7 @@ export interface ArenaSurvivorShopOfferState {
 }
 
 export interface ArenaSurvivorShopState {
+  mode: "regular" | "level_up";
   available: boolean;
   offers: ArenaSurvivorShopOfferState[];
   message?: string;
@@ -564,6 +566,8 @@ export interface ArenaSurvivorPlayerState {
   level: number;
   experience: number;
   experienceToNextLevel: number;
+  pendingLevelUpChoices: number;
+  levelBonusModifiers: ArenaSurvivorStatModifiers[];
   materials: number;
   loadout: ArenaSurvivorLoadoutState;
   shop: ArenaSurvivorShopState;

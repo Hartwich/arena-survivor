@@ -258,6 +258,7 @@ function buildArenaSurvivorShopModel(
   const playerCount = context.state.room?.players?.length ?? 0;
   const readyCount = (context.state.room?.players ?? []).filter((roomPlayer) => roomPlayer.isReady).length;
   const waitingForPlayers = readyCount < playerCount;
+  const choosingLevelBonus = player.shop.mode === "level_up";
   const combineCounts = player.loadout.weapons.reduce((counts, weapon) => {
     const key = `${weapon.weaponId}:${weapon.level}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -267,10 +268,20 @@ function buildArenaSurvivorShopModel(
   return {
     kind: "arena_survivor_modern_shop",
     language,
-    title: `${player.name} Shop`,
-    subtitle: `${en ? "Wave" : "Welle"} ${state.waveNumber} | Material ${player.materials}`,
+    title: choosingLevelBonus
+      ? en ? `${player.name} Level Up` : `${player.name} Level-Up`
+      : `${player.name} Shop`,
+    subtitle: choosingLevelBonus
+      ? en
+        ? `${player.pendingLevelUpChoices} bonus ${player.pendingLevelUpChoices === 1 ? "choice" : "choices"} remaining`
+        : `Noch ${player.pendingLevelUpChoices} Bonus-${player.pendingLevelUpChoices === 1 ? "Wahl" : "Wahlen"}`
+      : `${en ? "Wave" : "Welle"} ${state.waveNumber} | Material ${player.materials}`,
     helperText:
-      waitingForPlayers
+      choosingLevelBonus
+        ? en
+          ? "Choose one of four random bonuses for each earned level."
+          : "Waehle fuer jedes verdiente Level einen von vier zufaelligen Boni."
+        : waitingForPlayers
         ? en
           ? `Waiting for all players. ${readyCount}/${playerCount} ready.`
           : `Warte auf alle Spieler. ${readyCount}/${playerCount} bereit.`
@@ -285,7 +296,7 @@ function buildArenaSurvivorShopModel(
     accentColor: player.color,
     waveNumber: state.waveNumber,
     materials: player.materials,
-    ready: context.onSetReady
+    ready: context.onSetReady && !choosingLevelBonus
       ? {
           currentPlayerReady,
           readyCount,
@@ -304,7 +315,7 @@ function buildArenaSurvivorShopModel(
           }
         }
       : undefined,
-    reroll: {
+    reroll: choosingLevelBonus ? undefined : {
       cost: player.shop.rerollCost,
       count: player.shop.rerollCount,
       affordable: player.shop.canReroll,
@@ -316,7 +327,7 @@ function buildArenaSurvivorShopModel(
         context.onInput(createArenaSurvivorShopRerollInput(player.playerId));
       }
     },
-    loadout: {
+    loadout: choosingLevelBonus ? undefined : {
       weapons: player.loadout.weapons.map((weapon) => ({
         weaponInstanceId: weapon.weaponInstanceId,
         weaponId: weapon.weaponId,
@@ -334,7 +345,7 @@ function buildArenaSurvivorShopModel(
       })),
       items: player.loadout.items
     },
-    runSummary: player.runSummary,
+    runSummary: choosingLevelBonus ? undefined : player.runSummary,
     playerStats: resolvePlayerStats(player),
     offers: enrichArenaSurvivorShopOffers(player.shop.offers),
     onBuy: (offerId) => {
@@ -344,14 +355,14 @@ function buildArenaSurvivorShopModel(
 
       context.onInput(createArenaSurvivorShopInput(player.playerId, offerId));
     },
-    onSellWeapon: (weaponInstanceId) => {
+    onSellWeapon: choosingLevelBonus ? undefined : (weaponInstanceId) => {
       if (!player.playerId) {
         return;
       }
 
       context.onInput(createArenaSurvivorShopSellInput(player.playerId, weaponInstanceId));
     },
-    onCombineWeapon: (weaponInstanceId) => {
+    onCombineWeapon: choosingLevelBonus ? undefined : (weaponInstanceId) => {
       if (!player.playerId) {
         return;
       }
@@ -401,7 +412,8 @@ function buildArenaSurvivorJoystickModel(
     centerLabel: "GO",
     stats: [
       { label: "HP", value: `${formatRoundedHp(player?.hp)}/${formatRoundedHp(player?.maxHp)}` },
-      { label: "Kills", value: `${player?.runStats.kills ?? 0}` },
+      { label: "Lvl.", value: `${player?.level ?? 1}` },
+      { label: "EXP", value: `${Math.round(player?.experience ?? 0)}/${Math.round(player?.experienceToNextLevel ?? 1)}` },
       { label: "Material", value: `${player?.materials ?? 0}` },
       { label: "Status", value: formatStatus(player, state, en), highlighted: true },
       { label: en ? "Time" : "Zeit", value: timeText },

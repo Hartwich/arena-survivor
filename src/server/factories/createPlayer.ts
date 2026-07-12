@@ -36,7 +36,8 @@ export function createArenaSurvivorPlayer(
   playerIndex = 0
 ): ArenaSurvivorRuntimePlayerState {
   const character = resolveArenaSurvivorCharacter(characterId ?? carry?.characterId, playerIndex);
-  const playerStats = resolveArenaSurvivorPlayerStats(loadout, character.id);
+  const levelBonusModifiers = carry?.levelBonusModifiers?.map((modifiers) => ({ ...modifiers })) ?? [];
+  const playerStats = resolveArenaSurvivorPlayerStats(loadout, character.id, levelBonusModifiers);
   const level = Math.max(1, Math.floor(carry?.level ?? 1));
 
   return {
@@ -60,6 +61,8 @@ export function createArenaSurvivorPlayer(
     level,
     experience: Math.max(0, carry?.experience ?? 0),
     experienceToNextLevel: resolveArenaSurvivorExperienceToNextLevel(level),
+    pendingLevelUpChoices: Math.max(0, Math.floor(carry?.pendingLevelUpChoices ?? 0)),
+    levelBonusModifiers,
     materials: carry?.materials ?? 0,
     loadout: cloneLoadout(loadout),
     shop: createEmptyShopState(),

@@ -42,10 +42,12 @@ export function awardArenaSurvivorEnemyExperience(
   let experience = Math.max(0, player.experience) +
     resolveArenaSurvivorEnemyExperienceReward(enemy.definitionId);
   let experienceToNextLevel = resolveArenaSurvivorExperienceToNextLevel(level);
+  let levelsGained = 0;
 
   while (experience >= experienceToNextLevel) {
     experience -= experienceToNextLevel;
     level += 1;
+    levelsGained += 1;
     experienceToNextLevel = resolveArenaSurvivorExperienceToNextLevel(level);
   }
 
@@ -53,6 +55,7 @@ export function awardArenaSurvivorEnemyExperience(
     ...player,
     level,
     experience,
-    experienceToNextLevel
+    experienceToNextLevel,
+    pendingLevelUpChoices: player.pendingLevelUpChoices + levelsGained
   };
 }

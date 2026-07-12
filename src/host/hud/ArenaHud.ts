@@ -14,13 +14,6 @@ const hostTheme = {
   text: "#e2e8f0"
 };
 
-function formatTime(ms: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
 function formatRoundedHp(value: number): string {
   return `${Math.max(0, Math.round(value))}`;
 }
@@ -82,11 +75,11 @@ export function createArenaHud(): ArenaHud {
   metaBar.style.left = "50%";
   metaBar.style.top = "14px";
   metaBar.style.transform = "translateX(-50%)";
-  metaBar.style.padding = "7px 12px";
-  metaBar.style.width = "min(430px, 44vw)";
+  metaBar.style.padding = "6px 10px";
+  metaBar.style.width = "min(300px, 36vw)";
   metaBar.style.display = "grid";
   metaBar.style.gap = "5px";
-  metaBar.style.fontSize = "14px";
+  metaBar.style.fontSize = "13px";
   metaBar.style.fontWeight = "800";
   metaBar.style.letterSpacing = "0.01em";
   metaBar.style.whiteSpace = "nowrap";
@@ -114,10 +107,10 @@ export function createArenaHud(): ArenaHud {
   const playerCards = cornerAnchors.map((anchor) => {
     const card = document.createElement("section");
     card.style.position = "absolute";
-    card.style.width = "min(176px, calc(50vw - 32px))";
-    card.style.padding = "11px 13px 13px";
+    card.style.width = "min(150px, calc(50vw - 32px))";
+    card.style.padding = "8px 10px 9px";
     card.style.display = "grid";
-    card.style.gap = "7px";
+    card.style.gap = "4px";
     card.style.visibility = "hidden";
     applyPanelChrome(card);
 
@@ -160,22 +153,14 @@ export function createArenaHud(): ArenaHud {
     titleRow.appendChild(title);
     titleRow.appendChild(materialBadge);
 
-    const subline = document.createElement("div");
-    subline.style.fontSize = "11px";
-    subline.style.color = "#cbd5e1";
-    subline.style.lineHeight = "1.35";
-    subline.style.overflow = "hidden";
-    subline.style.textOverflow = "ellipsis";
-    subline.style.whiteSpace = "nowrap";
-
     const progressionRow = document.createElement("div");
     progressionRow.style.display = "grid";
-    progressionRow.style.gridTemplateColumns = "auto 1fr";
+    progressionRow.style.gridTemplateColumns = "1fr auto";
     progressionRow.style.alignItems = "center";
-    progressionRow.style.gap = "7px";
+    progressionRow.style.gap = "5px";
 
     const levelBadge = document.createElement("div");
-    levelBadge.style.padding = "4px 7px";
+    levelBadge.style.padding = "2px 5px";
     levelBadge.style.borderRadius = "8px";
     levelBadge.style.background = "rgba(14, 116, 144, 0.72)";
     levelBadge.style.fontSize = "11px";
@@ -207,8 +192,8 @@ export function createArenaHud(): ArenaHud {
 
     xpTrack.appendChild(xpFill);
     xpTrack.appendChild(xpLabel);
-    progressionRow.appendChild(levelBadge);
     progressionRow.appendChild(xpTrack);
+    progressionRow.appendChild(levelBadge);
 
     const hpRow = document.createElement("div");
     hpRow.style.display = "grid";
@@ -226,7 +211,7 @@ export function createArenaHud(): ArenaHud {
 
     const hpTrack = document.createElement("div");
     hpTrack.style.position = "relative";
-    hpTrack.style.height = "16px";
+    hpTrack.style.height = "13px";
     hpTrack.style.borderRadius = "999px";
     hpTrack.style.background = "#1e293b";
     hpTrack.style.overflow = "hidden";
@@ -243,9 +228,8 @@ export function createArenaHud(): ArenaHud {
     hpRow.appendChild(hpTrack);
 
     card.appendChild(titleRow);
-    card.appendChild(subline);
-    card.appendChild(progressionRow);
     card.appendChild(hpRow);
+    card.appendChild(progressionRow);
 
     overlay.appendChild(card);
 
@@ -253,7 +237,6 @@ export function createArenaHud(): ArenaHud {
       card,
       title,
       materialBadge,
-      subline,
       levelBadge,
       xpFill,
       xpLabel,
@@ -296,13 +279,6 @@ export function createArenaHud(): ArenaHud {
 
   function update(state: ArenaSurvivorState | null, room: RoomSnapshot | null = null): void {
     const en = room?.language === "en";
-    const roomPlayers = room?.players ?? [];
-    const readyCount = roomPlayers.filter((player) => player.isReady).length;
-    const playerCount = roomPlayers.length || state?.players.length || 0;
-    const timeLabel =
-      state?.result.outcome === "running"
-        ? `${en ? "Time" : "Zeit"} ${formatTime(state.remainingMs)}`
-        : `${en ? "Survived" : "Ueberlebt"} ${formatTime(state?.elapsedMs ?? 0)}`;
     const runningRound = state?.result.outcome === "running";
     const roundDurationMs = state ? state.elapsedMs + state.remainingMs : 0;
     const roundProgress = state
@@ -312,9 +288,7 @@ export function createArenaHud(): ArenaHud {
       : 0;
 
     metaText.textContent = state
-      ? runningRound
-        ? `${timeLabel}   |   ${en ? "Wave" : "Welle"} ${state.waveNumber}   |   ${en ? "Enemies" : "Gegner"} ${state.enemies.length}`
-        : `${timeLabel}   |   ${en ? "Wave" : "Welle"} ${state.waveNumber}   |   ${en ? "Ready" : "Bereit"} ${readyCount}/${playerCount}`
+      ? `${en ? "Wave" : "Welle"}: ${state.waveNumber}`
       : "Arena Survivor";
     roundProgressFill.style.width = `${Math.round(roundProgress * 100)}%`;
     roundProgressTrack.style.opacity = state ? "1" : "0";
@@ -340,12 +314,10 @@ export function createArenaHud(): ArenaHud {
       card.title.textContent = player.name;
       card.title.title = `${player.name} (${player.character.name})`;
       card.materialBadge.textContent = `M ${player.materials}`;
-      card.subline.textContent = `${player.character.name}${player.alive ? "" : " - KO"}`;
-      card.subline.style.color = player.alive ? "#cbd5e1" : "#fca5a5";
-      card.levelBadge.textContent = `${en ? "LV" : "LV"} ${player.level}`;
-      card.xpLabel.textContent = `XP ${Math.round(player.experience)} / ${Math.round(player.experienceToNextLevel)}`;
+      card.levelBadge.textContent = `${en ? "Lvl." : "Lvl."} ${player.level}`;
+      card.xpLabel.textContent = `EXP ${Math.round(player.experience)}/${Math.round(player.experienceToNextLevel)}`;
       card.xpFill.style.width = `${Math.round(experienceRatio * 100)}%`;
-      card.hpLabel.textContent = `HP ${formatRoundedHp(player.hp)} / ${formatRoundedHp(player.maxHp)}`;
+      card.hpLabel.textContent = `${en ? "HP" : "Leben"} ${formatRoundedHp(player.hp)}/${formatRoundedHp(player.maxHp)}`;
       card.hpFill.style.width = `${Math.round(hpRatio * 100)}%`;
       card.hpFill.style.background = hpColor;
     }

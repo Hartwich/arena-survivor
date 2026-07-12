@@ -237,6 +237,8 @@ function rebuildPlayersForNextWave(
           characterId: previousPlayer.character.id,
           level: previousPlayer.level,
           experience: previousPlayer.experience,
+          pendingLevelUpChoices: previousPlayer.pendingLevelUpChoices,
+          levelBonusModifiers: previousPlayer.levelBonusModifiers.map((modifiers) => ({ ...modifiers })),
           materials: previousPlayer.materials,
           loadout: previousPlayer.loadout,
           runSummary: previousPlayer.runSummary
