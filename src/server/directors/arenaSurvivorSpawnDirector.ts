@@ -9,6 +9,10 @@ export interface ArenaSurvivorSpawnPick {
   seed: number;
 }
 
+export interface ArenaSurvivorSpawnPickOptions {
+  preferStrongestUnlocked?: boolean;
+}
+
 export function resolveArenaSurvivorSpawnBurst(
   waveNumber: number,
   difficultySpawnBurstBonus = 0
@@ -28,7 +32,8 @@ export function resolveArenaSurvivorSpawnBurst(
 
 export function pickArenaSurvivorEnemyDefinition(
   waveNumber: number,
-  seed: number
+  seed: number,
+  options?: ArenaSurvivorSpawnPickOptions
 ): ArenaSurvivorSpawnPick {
   const candidates = arenaSurvivorEnemyDefinitions.filter(
     (definition) =>
@@ -44,7 +49,12 @@ export function pickArenaSurvivorEnemyDefinition(
     };
   }
 
-  const weightedCandidates = candidates.flatMap((definition) => {
+  const highestUnlockedWave = Math.max(...candidates.map((definition) => definition.minWave));
+  const selectionPool = options?.preferStrongestUnlocked
+    ? candidates.filter((definition) => definition.minWave === highestUnlockedWave)
+    : candidates;
+
+  const weightedCandidates = selectionPool.flatMap((definition) => {
     const waveBias = Math.max(1, waveNumber - definition.minWave + 1);
     const roleWeightMultiplier = definition.role === "shooter" ? 0.42 : 1;
     const weight = Math.max(
