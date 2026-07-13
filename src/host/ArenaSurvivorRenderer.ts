@@ -649,6 +649,25 @@ export function drawArenaSurvivorEntities(
       state.arenaWidth / 2 + Math.cos(scanAngle) * 104,
       state.arenaHeight / 2 + Math.sin(scanAngle) * 104
     );
+  } else if (state.visualTheme === "ironbound-dungeon") {
+    const runePulse = 0.34 + Math.sin(state.elapsedMs / 640) * 0.12;
+    const runeRadius = 84 + Math.sin(state.elapsedMs / 880) * 6;
+    const centerX = state.arenaWidth / 2;
+    const centerY = state.arenaHeight / 2;
+
+    graphics.lineStyle(3, 0xfacc15, runePulse);
+    graphics.strokeCircle(centerX, centerY, runeRadius);
+    graphics.lineStyle(2, 0xa78bfa, runePulse + 0.08);
+    graphics.strokeCircle(centerX, centerY, runeRadius - 14);
+
+    for (let index = 0; index < 8; index += 1) {
+      const angle = (Math.PI * 2 * index) / 8 + state.elapsedMs / 7200;
+      const innerX = centerX + Math.cos(angle) * (runeRadius - 22);
+      const innerY = centerY + Math.sin(angle) * (runeRadius - 22);
+      const outerX = centerX + Math.cos(angle) * (runeRadius + 8);
+      const outerY = centerY + Math.sin(angle) * (runeRadius + 8);
+      graphics.lineBetween(innerX, innerY, outerX, outerY);
+    }
   }
 
   for (const projectile of state.projectiles) {

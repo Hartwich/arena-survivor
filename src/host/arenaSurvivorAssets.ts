@@ -3,6 +3,7 @@ import type { ArenaSurvivorVisualTheme } from "../protocol.js";
 import {
   resolveArenaSurvivorCharacterThemeAssetId,
   resolveArenaSurvivorEnemyThemeAssetId,
+  resolveArenaSurvivorThemeAssetPath,
   resolveArenaSurvivorWeaponThemeAssetId
 } from "../visualThemes.js";
 
@@ -64,7 +65,8 @@ const weaponIds = [
 
 const arenaSurvivorBackgroundKeys: Record<ArenaSurvivorVisualTheme, string> = {
   classic: "arena-survivor-background",
-  "obsidian-relay": "arena-survivor-background-obsidian-relay"
+  "obsidian-relay": "arena-survivor-background-obsidian-relay",
+  "ironbound-dungeon": "arena-survivor-background-ironbound-dungeon"
 };
 
 export interface ArenaSurvivorAssetDescriptor {
@@ -129,26 +131,72 @@ const obsidianWeaponCarryAssets = weaponIds.map((id) => ({
   spritePath: `/arena-survivor/themes/obsidian-relay/weapons/${resolveArenaSurvivorWeaponThemeAssetId(id)}.svg`
 }));
 
+const ironboundCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => {
+  const assetId = resolveArenaSurvivorCharacterThemeAssetId(entry.id, "ironbound-dungeon");
+  const assetPath = resolveArenaSurvivorThemeAssetPath("ironbound-dungeon", "characters", assetId);
+  return {
+    id: entry.id,
+    spriteKey: `arena-survivor-ironbound-character-${entry.id}`,
+    spritePath: assetPath,
+    portraitKey: `arena-survivor-ironbound-character-portrait-${entry.id}`,
+    portraitPath: assetPath
+  };
+});
+
+const ironboundEnemyAssets: readonly ArenaSurvivorAssetDescriptor[] = enemyAssetIds.map((entry) => {
+  const assetId = resolveArenaSurvivorEnemyThemeAssetId(entry.id, "ironbound-dungeon");
+  const assetPath = resolveArenaSurvivorThemeAssetPath("ironbound-dungeon", "enemies", assetId);
+  return {
+    id: entry.id,
+    spriteKey: `arena-survivor-ironbound-enemy-${entry.id}`,
+    spritePath: assetPath,
+    portraitKey: `arena-survivor-ironbound-enemy-portrait-${entry.id}`,
+    portraitPath: assetPath
+  };
+});
+
+const ironboundWeaponCarryAssets = weaponIds.map((id) => ({
+  id,
+  spriteKey: `arena-survivor-ironbound-weapon-${id}`,
+  spritePath: resolveArenaSurvivorThemeAssetPath(
+    "ironbound-dungeon",
+    "weapons",
+    resolveArenaSurvivorWeaponThemeAssetId(id, "ironbound-dungeon")
+  )
+}));
+
+function loadArenaSurvivorImage(scene: Phaser.Scene, key: string, path: string): void {
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  if (path.endsWith(".svg")) {
+    scene.load.svg(key, path);
+    return;
+  }
+
+  scene.load.image(key, path);
+}
+
 export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
   for (const asset of [
     ...arenaSurvivorCharacterAssets,
     ...arenaSurvivorEnemyAssets,
     ...obsidianCharacterAssets,
-    ...obsidianEnemyAssets
+    ...obsidianEnemyAssets,
+    ...ironboundCharacterAssets,
+    ...ironboundEnemyAssets
   ]) {
-    if (!scene.textures.exists(asset.spriteKey)) {
-      scene.load.svg(asset.spriteKey, asset.spritePath);
-    }
-
-    if (!scene.textures.exists(asset.portraitKey)) {
-      scene.load.svg(asset.portraitKey, asset.portraitPath);
-    }
+    loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
+    loadArenaSurvivorImage(scene, asset.portraitKey, asset.portraitPath);
   }
 
-  for (const asset of [...arenaSurvivorWeaponCarryAssets, ...obsidianWeaponCarryAssets]) {
-    if (!scene.textures.exists(asset.spriteKey)) {
-      scene.load.svg(asset.spriteKey, asset.spritePath);
-    }
+  for (const asset of [
+    ...arenaSurvivorWeaponCarryAssets,
+    ...obsidianWeaponCarryAssets,
+    ...ironboundWeaponCarryAssets
+  ]) {
+    loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
   }
 
   if (!scene.textures.exists(arenaSurvivorBackgroundKeys.classic)) {
@@ -161,13 +209,40 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
       "/arena-survivor/themes/obsidian-relay/backgrounds/relay-vault.svg"
     );
   }
+
+  if (!scene.textures.exists(arenaSurvivorBackgroundKeys["ironbound-dungeon"])) {
+    scene.load.image(
+      arenaSurvivorBackgroundKeys["ironbound-dungeon"],
+      "/arena-survivor/themes/ironbound-dungeon/backgrounds/crypt-floor.png"
+    );
+  }
+}
+
+function resolveCharacterAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly ArenaSurvivorAssetDescriptor[] {
+  if (theme === "obsidian-relay") {
+    return obsidianCharacterAssets;
+  }
+  if (theme === "ironbound-dungeon") {
+    return ironboundCharacterAssets;
+  }
+  return arenaSurvivorCharacterAssets;
+}
+
+function resolveEnemyAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly ArenaSurvivorAssetDescriptor[] {
+  if (theme === "obsidian-relay") {
+    return obsidianEnemyAssets;
+  }
+  if (theme === "ironbound-dungeon") {
+    return ironboundEnemyAssets;
+  }
+  return arenaSurvivorEnemyAssets;
 }
 
 export function resolveArenaSurvivorPlayerSpriteKey(
   characterId: string,
   theme: ArenaSurvivorVisualTheme = "classic"
 ): string {
-  const assets = theme === "obsidian-relay" ? obsidianCharacterAssets : arenaSurvivorCharacterAssets;
+  const assets = resolveCharacterAssetsForTheme(theme);
   const asset = assets.find((entry) => entry.id === characterId);
   return asset?.spriteKey ?? arenaSurvivorCharacterAssets[0].spriteKey;
 }
@@ -176,7 +251,7 @@ export function resolveArenaSurvivorPlayerPortraitKey(
   characterId: string,
   theme: ArenaSurvivorVisualTheme = "classic"
 ): string {
-  const assets = theme === "obsidian-relay" ? obsidianCharacterAssets : arenaSurvivorCharacterAssets;
+  const assets = resolveCharacterAssetsForTheme(theme);
   const asset = assets.find((entry) => entry.id === characterId);
   return asset?.portraitKey ?? arenaSurvivorCharacterAssets[0].portraitKey;
 }
@@ -185,7 +260,7 @@ export function resolveArenaSurvivorEnemySpriteKey(
   definitionId: string,
   theme: ArenaSurvivorVisualTheme = "classic"
 ): string | null {
-  const assets = theme === "obsidian-relay" ? obsidianEnemyAssets : arenaSurvivorEnemyAssets;
+  const assets = resolveEnemyAssetsForTheme(theme);
   const asset = assets.find((entry) => entry.id === definitionId);
   return asset?.spriteKey ?? null;
 }
@@ -194,7 +269,7 @@ export function resolveArenaSurvivorEnemyPortraitKey(
   definitionId: string,
   theme: ArenaSurvivorVisualTheme = "classic"
 ): string | null {
-  const assets = theme === "obsidian-relay" ? obsidianEnemyAssets : arenaSurvivorEnemyAssets;
+  const assets = resolveEnemyAssetsForTheme(theme);
   const asset = assets.find((entry) => entry.id === definitionId);
   return asset?.portraitKey ?? null;
 }
@@ -203,7 +278,11 @@ export function resolveArenaSurvivorWeaponCarrySpriteKey(
   weaponId: string,
   theme: ArenaSurvivorVisualTheme = "classic"
 ): string | null {
-  const assets = theme === "obsidian-relay" ? obsidianWeaponCarryAssets : arenaSurvivorWeaponCarryAssets;
+  const assets = theme === "obsidian-relay"
+    ? obsidianWeaponCarryAssets
+    : theme === "ironbound-dungeon"
+      ? ironboundWeaponCarryAssets
+      : arenaSurvivorWeaponCarryAssets;
   const asset = assets.find((entry) => entry.id === weaponId);
   return asset?.spriteKey ?? null;
 }

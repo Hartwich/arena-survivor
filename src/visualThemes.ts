@@ -12,6 +12,11 @@ export const arenaSurvivorVisualThemeOptions = [
     id: "classic",
     label: "Classic Arena",
     description: "Das bisherige warme, organische Arena-Design."
+  },
+  {
+    id: "ironbound-dungeon",
+    label: "Ironbound Dungeon",
+    description: "Hochaufloesende CC0-Dungeon-Grafiken, violetter Stein, Gold und klassische Fantasy."
   }
 ] as const;
 
@@ -98,33 +103,112 @@ const itemAssets: Record<string, string> = {
   "harvest-sprout": "harvest-sprout"
 };
 
+const ironboundCharacterAssets: Record<string, string> = {
+  "schrotto-scharfschuss": "schrotto-scharfschuss",
+  "jaeger-ranger": "jaeger-ranger",
+  "kloppbert-keulenwucht": "kloppbert-keulenwucht",
+  "pruegler-brawler": "pruegler-brawler",
+  "funkenberta-flaemmchen": "funkenberta-flaemmchen",
+  "professor-paradox": "professor-paradox",
+  "kanni-baldrian": "kanni-baldrian",
+  "doktor-knolle": "doktor-knolle",
+  "sir-pampel-panzer": "sir-pampel-panzer",
+  flitzelotte: "flitzelotte",
+  "gluecksknolle-lucky": "gluecksknolle-lucky",
+  "rundling-allround": "rundling-allround",
+  "ackerling-farmer": "ackerling-farmer"
+};
+
+const ironboundEnemyAssets: Record<string, string> = {
+  "slime-blob": "shade-scorpion",
+  "fang-crawler": "night-scarab",
+  "needle-runner": "shade-scorpion",
+  "stone-brute": "stone-horror",
+  "shell-bulwark": "stone-horror",
+  "ember-wisp": "vault-eye",
+  "toxic-shroom": "bone-serpent",
+  "ash-spitter": "vault-eye",
+  "plague-lobber": "bone-serpent",
+  "iron-mauler": "grave-skeleton",
+  "loot-runner": "crypt-goblin",
+  "charger-hulk": "night-scarab",
+  "elite-spitter": "vault-eye",
+  "scrap-goliath": "grave-skeleton",
+  "crimson-overlord": "vault-eye"
+};
+
+const ironboundWeaponAssets: Record<string, string> = Object.fromEntries(
+  Object.keys(weaponAssets).map((id) => [id, id])
+);
+
+const ironboundItemAssets: Record<string, string> = Object.fromEntries(
+  Object.keys(itemAssets).map((id) => [id, id])
+);
+
+type ArenaSurvivorAlternateVisualTheme = Exclude<ArenaSurvivorVisualTheme, "classic">;
+
 export function isArenaSurvivorVisualTheme(value: unknown): value is ArenaSurvivorVisualTheme {
-  return value === "classic" || value === "obsidian-relay";
+  return value === "classic" || value === "obsidian-relay" || value === "ironbound-dungeon";
 }
 
-export function resolveArenaSurvivorCharacterThemeAssetId(characterId: string): string {
-  return characterAssets[characterId] ?? "relay-artificer";
+export function resolveArenaSurvivorCharacterThemeAssetId(
+  characterId: string,
+  theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
+): string {
+  return theme === "ironbound-dungeon"
+    ? ironboundCharacterAssets[characterId] ?? "rundling-allround"
+    : characterAssets[characterId] ?? "relay-artificer";
 }
 
-export function resolveArenaSurvivorEnemyThemeAssetId(enemyId: string): string {
-  return enemyAssets[enemyId] ?? "nano-swarm";
+export function resolveArenaSurvivorEnemyThemeAssetId(
+  enemyId: string,
+  theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
+): string {
+  return theme === "ironbound-dungeon"
+    ? ironboundEnemyAssets[enemyId] ?? "shade-scorpion"
+    : enemyAssets[enemyId] ?? "nano-swarm";
 }
 
-export function resolveArenaSurvivorWeaponThemeAssetId(weaponId: string): string {
-  return weaponAssets[weaponId] ?? "pulse-carbine";
+export function resolveArenaSurvivorWeaponThemeAssetId(
+  weaponId: string,
+  theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
+): string {
+  return theme === "ironbound-dungeon"
+    ? ironboundWeaponAssets[weaponId] ?? "rust-blade"
+    : weaponAssets[weaponId] ?? "pulse-carbine";
 }
 
-export function resolveArenaSurvivorItemThemeAssetId(itemId: string): string {
-  return itemAssets[itemId] ?? "arcane-module";
+export function resolveArenaSurvivorItemThemeAssetId(
+  itemId: string,
+  theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
+): string {
+  return theme === "ironbound-dungeon"
+    ? ironboundItemAssets[itemId] ?? "arcane-crystal"
+    : itemAssets[itemId] ?? "arcane-module";
+}
+
+export function resolveArenaSurvivorThemeAssetPath(
+  theme: ArenaSurvivorAlternateVisualTheme,
+  category: "characters" | "enemies" | "weapons" | "items",
+  assetId: string
+): string {
+  const extension = theme === "ironbound-dungeon" ? "png" : "svg";
+  return `/arena-survivor/themes/${theme}/${category}/${assetId}.${extension}`;
 }
 
 export function resolveArenaSurvivorCharacterPortraitPath(
   characterId: string,
   theme: ArenaSurvivorVisualTheme
 ): string {
-  return theme === "obsidian-relay"
-    ? `/arena-survivor/themes/obsidian-relay/characters/${resolveArenaSurvivorCharacterThemeAssetId(characterId)}.svg`
-    : `/arena-survivor/characters/portraits/${characterId}.svg`;
+  if (theme === "classic") {
+    return `/arena-survivor/characters/portraits/${characterId}.svg`;
+  }
+
+  return resolveArenaSurvivorThemeAssetPath(
+    theme,
+    "characters",
+    resolveArenaSurvivorCharacterThemeAssetId(characterId, theme)
+  );
 }
 
 export function resolveArenaSurvivorShopIconPath(
@@ -139,7 +223,11 @@ export function resolveArenaSurvivorShopIconPath(
   }
 
   const assetId = kind === "weapon"
-    ? resolveArenaSurvivorWeaponThemeAssetId(id)
-    : resolveArenaSurvivorItemThemeAssetId(id);
-  return `/arena-survivor/themes/obsidian-relay/${kind === "weapon" ? "weapons" : "items"}/${assetId}.svg`;
+    ? resolveArenaSurvivorWeaponThemeAssetId(id, theme)
+    : resolveArenaSurvivorItemThemeAssetId(id, theme);
+  return resolveArenaSurvivorThemeAssetPath(
+    theme,
+    kind === "weapon" ? "weapons" : "items",
+    assetId
+  );
 }
