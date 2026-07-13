@@ -12,7 +12,7 @@ Beta. The survival loop, character choice, and lobby setup are already good to p
 
 The host can select the complete art set during run setup:
 
-- **Obsidian Relay** is the default detailed sci-fi set with its own arena map, character classes, machine enemies, weapons, portraits, and shop modules.
+- **Obsidian Relay** is the default detailed sci-fi set with its own arena map and a complete one-to-one catalog: 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
 - **Classic Arena** keeps the original warm organic presentation.
 
 The selection is visual only and does not change gameplay balance.

@@ -17,18 +17,18 @@ export const arenaSurvivorVisualThemeOptions = [
 
 const characterAssets: Record<string, string> = {
   "schrotto-scharfschuss": "relay-marksman",
-  "jaeger-ranger": "relay-marksman",
+  "jaeger-ranger": "relay-ranger",
   "kloppbert-keulenwucht": "relay-breaker",
-  "pruegler-brawler": "relay-breaker",
+  "pruegler-brawler": "relay-brawler",
   "funkenberta-flaemmchen": "relay-arcanist",
-  "professor-paradox": "relay-arcanist",
+  "professor-paradox": "relay-paradox",
   "kanni-baldrian": "relay-revenant",
   "doktor-knolle": "relay-medic",
   "sir-pampel-panzer": "relay-bastion",
   flitzelotte: "relay-courier",
-  "gluecksknolle-lucky": "relay-courier",
+  "gluecksknolle-lucky": "relay-fortune",
   "rundling-allround": "relay-artificer",
-  "ackerling-farmer": "relay-artificer"
+  "ackerling-farmer": "relay-harvester"
 };
 
 const enemyAssets: Record<string, string> = {
@@ -51,51 +51,51 @@ const enemyAssets: Record<string, string> = {
 
 const weaponAssets: Record<string, string> = {
   "rust-blade": "phase-blade",
-  cleaver: "phase-blade",
+  cleaver: "plasma-cleaver",
   "twin-daggers": "twin-emitters",
   "war-hammer": "gravity-maul",
-  mace: "gravity-maul",
+  mace: "shock-mace",
   spear: "arc-polearm",
-  lance: "arc-polearm",
-  halberd: "arc-polearm",
-  pitchfork: "arc-polearm",
-  stick: "arc-polearm",
+  lance: "rail-lance",
+  halberd: "crescent-halberd",
+  pitchfork: "trident-array",
+  stick: "conductor-rod",
   stone: "singularity-orb",
-  "frost-orb": "singularity-orb",
+  "frost-orb": "cryo-orb",
   "survivor-pistol": "pulse-carbine",
-  "scrap-smg": "pulse-carbine",
-  "coil-rifle": "pulse-carbine",
-  "gear-launcher": "pulse-carbine",
+  "scrap-smg": "ion-smg",
+  "coil-rifle": "coil-accelerator",
+  "gear-launcher": "disc-launcher",
   "hunter-bow": "photon-bow",
   "ember-wand": "conduit-scepter",
-  "spark-rod": "conduit-scepter",
-  "venom-siphon": "conduit-scepter",
-  "prism-scepter": "conduit-scepter"
+  "spark-rod": "tesla-rod",
+  "venom-siphon": "toxin-siphon",
+  "prism-scepter": "prism-focus"
 };
 
 const itemAssets: Record<string, string> = {
   "mushroom-cap": "vital-module",
-  "stone-heart": "vital-module",
-  "herbal-bandage": "vital-module",
-  "vampire-brooch": "vital-module",
+  "stone-heart": "stone-heart",
+  "herbal-bandage": "herbal-bandage",
+  "vampire-brooch": "vampire-brooch",
   "iron-shell": "armor-module",
-  "heavy-coat": "armor-module",
+  "heavy-coat": "heavy-coat",
   "power-bracelet": "power-module",
-  "berserker-feather": "power-module",
-  "heavy-bullets": "power-module",
-  "drill-core": "power-module",
+  "berserker-feather": "berserker-feather",
+  "heavy-bullets": "heavy-bullets",
+  "drill-core": "drill-core",
   "glass-eye": "optic-module",
-  "scope-lens": "optic-module",
-  "blindfold": "optic-module",
+  "scope-lens": "scope-lens",
+  "blindfold": "blindfold",
   "trigger-glove": "motion-module",
-  "runner-boots": "motion-module",
-  "duelist-ribbon": "motion-module",
+  "runner-boots": "runner-boots",
+  "duelist-ribbon": "duelist-ribbon",
   "arcane-crystal": "arcane-module",
-  "magnet-core": "arcane-module",
-  "thorn-chain": "arcane-module",
+  "magnet-core": "magnet-core",
+  "thorn-chain": "thorn-chain",
   medal: "fortune-module",
-  "lucky-charm": "fortune-module",
-  "harvest-sprout": "fortune-module"
+  "lucky-charm": "lucky-charm",
+  "harvest-sprout": "harvest-sprout"
 };
 
 export function isArenaSurvivorVisualTheme(value: unknown): value is ArenaSurvivorVisualTheme {
