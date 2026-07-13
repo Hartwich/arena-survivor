@@ -8,6 +8,15 @@ Co-op arena survival game for Open Party Lab with character choices, waves, and 
 
 Beta. The survival loop, character choice, and lobby setup are already good to play locally. Still needs deeper progression, balancing, and enemy/readability passes before a stable release.
 
+## Visual Themes
+
+The host can select the complete art set during run setup:
+
+- **Obsidian Relay** is the default detailed sci-fi set with its own arena map, character classes, machine enemies, weapons, portraits, and shop modules.
+- **Classic Arena** keeps the original warm organic presentation.
+
+The selection is visual only and does not change gameplay balance.
+
 ## Run Through Open Party Lab
 
 This repo is not a standalone app. Run it through the Open Party Lab platform.

@@ -1,4 +1,10 @@
 import Phaser from "phaser";
+import type { ArenaSurvivorVisualTheme } from "../protocol.js";
+import {
+  resolveArenaSurvivorCharacterThemeAssetId,
+  resolveArenaSurvivorEnemyThemeAssetId,
+  resolveArenaSurvivorWeaponThemeAssetId
+} from "../visualThemes.js";
 
 const characterAssetIds = [
   { id: "schrotto-scharfschuss", assetId: "schrotto-scharfschuss" },
@@ -56,7 +62,10 @@ const weaponIds = [
   "pitchfork"
 ] as const;
 
-const arenaSurvivorBackgroundKey = "arena-survivor-background";
+const arenaSurvivorBackgroundKeys: Record<ArenaSurvivorVisualTheme, string> = {
+  classic: "arena-survivor-background",
+  "obsidian-relay": "arena-survivor-background-obsidian-relay"
+};
 
 export interface ArenaSurvivorAssetDescriptor {
   id: string;
@@ -92,8 +101,41 @@ export const arenaSurvivorWeaponCarryAssets: ReadonlyArray<{
   spritePath: `/arena-survivor/weapons/carry/${id}_carry.svg`
 }));
 
+const obsidianCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => {
+  const assetId = resolveArenaSurvivorCharacterThemeAssetId(entry.id);
+  return {
+    id: entry.id,
+    spriteKey: `arena-survivor-obsidian-character-${entry.id}`,
+    spritePath: `/arena-survivor/themes/obsidian-relay/characters/${assetId}.svg`,
+    portraitKey: `arena-survivor-obsidian-character-portrait-${entry.id}`,
+    portraitPath: `/arena-survivor/themes/obsidian-relay/characters/${assetId}.svg`
+  };
+});
+
+const obsidianEnemyAssets: readonly ArenaSurvivorAssetDescriptor[] = enemyAssetIds.map((entry) => {
+  const assetId = resolveArenaSurvivorEnemyThemeAssetId(entry.id);
+  return {
+    id: entry.id,
+    spriteKey: `arena-survivor-obsidian-enemy-${entry.id}`,
+    spritePath: `/arena-survivor/themes/obsidian-relay/enemies/${assetId}.svg`,
+    portraitKey: `arena-survivor-obsidian-enemy-portrait-${entry.id}`,
+    portraitPath: `/arena-survivor/themes/obsidian-relay/enemies/${assetId}.svg`
+  };
+});
+
+const obsidianWeaponCarryAssets = weaponIds.map((id) => ({
+  id,
+  spriteKey: `arena-survivor-obsidian-weapon-${id}`,
+  spritePath: `/arena-survivor/themes/obsidian-relay/weapons/${resolveArenaSurvivorWeaponThemeAssetId(id)}.svg`
+}));
+
 export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
-  for (const asset of [...arenaSurvivorCharacterAssets, ...arenaSurvivorEnemyAssets]) {
+  for (const asset of [
+    ...arenaSurvivorCharacterAssets,
+    ...arenaSurvivorEnemyAssets,
+    ...obsidianCharacterAssets,
+    ...obsidianEnemyAssets
+  ]) {
     if (!scene.textures.exists(asset.spriteKey)) {
       scene.load.svg(asset.spriteKey, asset.spritePath);
     }
@@ -103,42 +145,69 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
     }
   }
 
-  for (const asset of arenaSurvivorWeaponCarryAssets) {
+  for (const asset of [...arenaSurvivorWeaponCarryAssets, ...obsidianWeaponCarryAssets]) {
     if (!scene.textures.exists(asset.spriteKey)) {
       scene.load.svg(asset.spriteKey, asset.spritePath);
     }
   }
 
-  if (!scene.textures.exists(arenaSurvivorBackgroundKey)) {
-    scene.load.svg(arenaSurvivorBackgroundKey, "/arena-survivor/backgrounds/arena-field.svg");
+  if (!scene.textures.exists(arenaSurvivorBackgroundKeys.classic)) {
+    scene.load.svg(arenaSurvivorBackgroundKeys.classic, "/arena-survivor/backgrounds/arena-field.svg");
+  }
+
+  if (!scene.textures.exists(arenaSurvivorBackgroundKeys["obsidian-relay"])) {
+    scene.load.svg(
+      arenaSurvivorBackgroundKeys["obsidian-relay"],
+      "/arena-survivor/themes/obsidian-relay/backgrounds/relay-vault.svg"
+    );
   }
 }
 
-export function resolveArenaSurvivorPlayerSpriteKey(characterId: string): string {
-  const asset = arenaSurvivorCharacterAssets.find((entry) => entry.id === characterId);
+export function resolveArenaSurvivorPlayerSpriteKey(
+  characterId: string,
+  theme: ArenaSurvivorVisualTheme = "classic"
+): string {
+  const assets = theme === "obsidian-relay" ? obsidianCharacterAssets : arenaSurvivorCharacterAssets;
+  const asset = assets.find((entry) => entry.id === characterId);
   return asset?.spriteKey ?? arenaSurvivorCharacterAssets[0].spriteKey;
 }
 
-export function resolveArenaSurvivorPlayerPortraitKey(characterId: string): string {
-  const asset = arenaSurvivorCharacterAssets.find((entry) => entry.id === characterId);
+export function resolveArenaSurvivorPlayerPortraitKey(
+  characterId: string,
+  theme: ArenaSurvivorVisualTheme = "classic"
+): string {
+  const assets = theme === "obsidian-relay" ? obsidianCharacterAssets : arenaSurvivorCharacterAssets;
+  const asset = assets.find((entry) => entry.id === characterId);
   return asset?.portraitKey ?? arenaSurvivorCharacterAssets[0].portraitKey;
 }
 
-export function resolveArenaSurvivorEnemySpriteKey(definitionId: string): string | null {
-  const asset = arenaSurvivorEnemyAssets.find((entry) => entry.id === definitionId);
+export function resolveArenaSurvivorEnemySpriteKey(
+  definitionId: string,
+  theme: ArenaSurvivorVisualTheme = "classic"
+): string | null {
+  const assets = theme === "obsidian-relay" ? obsidianEnemyAssets : arenaSurvivorEnemyAssets;
+  const asset = assets.find((entry) => entry.id === definitionId);
   return asset?.spriteKey ?? null;
 }
 
-export function resolveArenaSurvivorEnemyPortraitKey(definitionId: string): string | null {
-  const asset = arenaSurvivorEnemyAssets.find((entry) => entry.id === definitionId);
+export function resolveArenaSurvivorEnemyPortraitKey(
+  definitionId: string,
+  theme: ArenaSurvivorVisualTheme = "classic"
+): string | null {
+  const assets = theme === "obsidian-relay" ? obsidianEnemyAssets : arenaSurvivorEnemyAssets;
+  const asset = assets.find((entry) => entry.id === definitionId);
   return asset?.portraitKey ?? null;
 }
 
-export function resolveArenaSurvivorWeaponCarrySpriteKey(weaponId: string): string | null {
-  const asset = arenaSurvivorWeaponCarryAssets.find((entry) => entry.id === weaponId);
+export function resolveArenaSurvivorWeaponCarrySpriteKey(
+  weaponId: string,
+  theme: ArenaSurvivorVisualTheme = "classic"
+): string | null {
+  const assets = theme === "obsidian-relay" ? obsidianWeaponCarryAssets : arenaSurvivorWeaponCarryAssets;
+  const asset = assets.find((entry) => entry.id === weaponId);
   return asset?.spriteKey ?? null;
 }
 
-export function resolveArenaSurvivorBackgroundKey(): string {
-  return arenaSurvivorBackgroundKey;
+export function resolveArenaSurvivorBackgroundKey(theme: ArenaSurvivorVisualTheme = "classic"): string {
+  return arenaSurvivorBackgroundKeys[theme];
 }

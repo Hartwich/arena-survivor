@@ -48,6 +48,7 @@ export interface ArenaSurvivorPublicState extends PublicArenaSurvivorState {
 
 export interface ArenaSurvivorRuntimeState extends BaseRoundState {
   language: SupportedLanguage;
+  visualTheme: PublicArenaSurvivorState["visualTheme"];
   seed: number;
   arenaWidth: number;
   arenaHeight: number;

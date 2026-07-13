@@ -51,6 +51,10 @@ import { applyPickupSystem } from "./systems/pickupSystem.js";
 import { applyProjectileSystem } from "./systems/projectileSystem.js";
 import { resolveRoundEndSystem } from "./systems/roundEndSystem.js";
 import { applySpawnSystem } from "./systems/spawnSystem.js";
+import {
+  arenaSurvivorDefaultVisualTheme,
+  isArenaSurvivorVisualTheme
+} from "../visualThemes.js";
 
 const phaseTimings = resolveRoundPhaseTimings(arenaSurvivorManifest.phaseDurations);
 
@@ -182,6 +186,13 @@ function resolveConfiguredArenaSurvivorDifficultyTier(context: {
   );
 }
 
+function resolveConfiguredArenaSurvivorVisualTheme(context: {
+  roomSettings: Readonly<Record<string, unknown>>;
+}) {
+  const value = context.roomSettings[arenaSurvivorRoomSettingKeys.visualTheme];
+  return isArenaSurvivorVisualTheme(value) ? value : arenaSurvivorDefaultVisualTheme;
+}
+
 function createPlayersFromCarry(
   gamePlayers: GamePlayerSummary[],
   now: number,
@@ -276,13 +287,24 @@ export const arenaSurvivorServerGame: ServerGame<
       return {};
     }
 
-    const nextDifficultyTier = clampArenaSurvivorDifficultyTier(hostAction.difficulty);
+    const roomSettings: Record<string, unknown> = {
+      [arenaSurvivorRoomSettingKeys.setupConfirmed]: false
+    };
+
+    if (hostAction.difficulty !== undefined) {
+      roomSettings[arenaSurvivorRoomSettingKeys.difficultyTier] =
+        clampArenaSurvivorDifficultyTier(hostAction.difficulty);
+    }
+
+    if (hostAction.visualTheme !== undefined) {
+      roomSettings[arenaSurvivorRoomSettingKeys.visualTheme] =
+        isArenaSurvivorVisualTheme(hostAction.visualTheme)
+          ? hostAction.visualTheme
+          : arenaSurvivorDefaultVisualTheme;
+    }
 
     return {
-      roomSettings: {
-        [arenaSurvivorRoomSettingKeys.difficultyTier]: nextDifficultyTier,
-        [arenaSurvivorRoomSettingKeys.setupConfirmed]: false
-      }
+      roomSettings
     };
   },
   createInitialState(context) {
@@ -293,6 +315,7 @@ export const arenaSurvivorServerGame: ServerGame<
         ? resolvePreviousArenaState(context.previousRound.state as ArenaSurvivorRuntimeState)
         : null;
     const playerSetup = createPlayersFromCarry(gamePlayers, context.now, previousState);
+    const visualTheme = resolveConfiguredArenaSurvivorVisualTheme(context);
     const configuredDifficultyTier = resolveConfiguredArenaSurvivorDifficultyTier(context);
     const difficulty = resolveArenaSurvivorDifficulty(
       playerSetup.waveNumber,
@@ -308,6 +331,7 @@ export const arenaSurvivorServerGame: ServerGame<
           : en ? "A new run begins." : "Ein neuer Run beginnt."
       }),
       language: context.language,
+      visualTheme,
       seed:
         previousState?.seed ??
         ((context.now ^ 0x9e3779b9 ^ playerSetup.waveNumber * 97) >>> 0),
@@ -507,6 +531,7 @@ export const arenaSurvivorServerGame: ServerGame<
   },
   toPublicState(state) {
     return {
+      visualTheme: state.visualTheme,
       arenaWidth: state.arenaWidth,
       arenaHeight: state.arenaHeight,
       waveNumber: state.waveNumber,
@@ -529,6 +554,7 @@ export const arenaSurvivorServerGame: ServerGame<
   },
   toControllerState(state) {
     return {
+      visualTheme: state.visualTheme,
       arenaWidth: state.arenaWidth,
       arenaHeight: state.arenaHeight,
       waveNumber: state.waveNumber,
