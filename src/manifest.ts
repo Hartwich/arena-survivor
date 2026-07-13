@@ -2,6 +2,11 @@ import type { GameManifest } from "@open-party-lab/game-core";
 import { arenaSurvivorRoomSettingKeys } from "./server/arenaSurvivorConfig.js";
 import { arenaSurvivorCharacterDefinitions } from "./server/definitions/characterDefinitions.js";
 import { arenaSurvivorSetupConfig } from "./protocol.js";
+import {
+  arenaSurvivorDefaultVisualTheme,
+  arenaSurvivorVisualThemeOptions,
+  resolveArenaSurvivorCharacterPortraitPath
+} from "./visualThemes.js";
 
 export const arenaSurvivorManifest = {
   id: "arena-survivor",
@@ -19,6 +24,16 @@ export const arenaSurvivorManifest = {
     title: "Run Setup",
     description: "Lege die Schwierigkeit fest und gib den Run frei.",
     fields: [
+      {
+        kind: "select",
+        id: "visualTheme",
+        settingKey: arenaSurvivorRoomSettingKeys.visualTheme,
+        actionKey: "visualTheme",
+        label: "Art Design",
+        description: "Waehle das komplette visuelle Set fuer Map, Figuren, Gegner und Ausruestung.",
+        options: arenaSurvivorVisualThemeOptions,
+        defaultValue: arenaSurvivorSetupConfig.visualTheme.defaultValue
+      },
       {
         kind: "number",
         id: "difficulty",
@@ -50,7 +65,7 @@ export const arenaSurvivorManifest = {
       title: character.title,
       archetype: character.archetype,
       description: character.description,
-      portraitPath: `/arena-survivor/characters/portraits/${character.id}.svg`,
+      portraitPath: resolveArenaSurvivorCharacterPortraitPath(character.id, arenaSurvivorDefaultVisualTheme),
       visual: {
         primaryColor: character.visual.primaryColor,
         secondaryColor: character.visual.secondaryColor,
@@ -65,4 +80,3 @@ export const arenaSurvivorManifest = {
     scoreboardMs: 4_000
   }
 } as const satisfies GameManifest;
-

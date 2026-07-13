@@ -1,4 +1,10 @@
-import type { ArenaSurvivorPlayerState, ArenaSurvivorShopOfferState, ArenaSurvivorState } from "../protocol.js";
+import type {
+  ArenaSurvivorPlayerState,
+  ArenaSurvivorShopOfferState,
+  ArenaSurvivorState,
+  ArenaSurvivorVisualTheme
+} from "../protocol.js";
+import { resolveArenaSurvivorShopIconPath } from "../visualThemes.js";
 import {
   createArenaSurvivorMoveInput,
   createArenaSurvivorShopInput,
@@ -169,12 +175,19 @@ function buildOfferStats(offer: ArenaSurvivorShopOfferState): LayoutStat[] {
 }
 
 function enrichArenaSurvivorShopOffers(
-  offers: ArenaSurvivorShopOfferState[]
+  offers: ArenaSurvivorShopOfferState[],
+  visualTheme: ArenaSurvivorVisualTheme
 ): ShopOfferModel[] {
   return offers.map((offer) => {
     const stats = buildOfferStats(offer);
+    const iconPath = offer.kind === "weapon" && offer.weaponId
+      ? resolveArenaSurvivorShopIconPath("weapon", offer.weaponId, visualTheme)
+      : offer.kind === "item" && offer.itemId
+        ? resolveArenaSurvivorShopIconPath("item", offer.itemId, visualTheme)
+        : offer.iconPath;
+    const themedOffer = { ...offer, iconPath };
 
-    return stats.length > 0 ? { ...offer, stats } : offer;
+    return stats.length > 0 ? { ...themedOffer, stats } : themedOffer;
   });
 }
 
@@ -335,7 +348,7 @@ function buildArenaSurvivorShopModel(
         maxLevel: weapon.maxLevel,
         displayName: weapon.displayName,
         description: weapon.description,
-        iconPath: weapon.iconPath,
+        iconPath: resolveArenaSurvivorShopIconPath("weapon", weapon.weaponId, state.visualTheme),
         sellValue: weapon.sellValue,
         sellable: weapon.sellable,
         canCombine:
@@ -343,11 +356,14 @@ function buildArenaSurvivorShopModel(
           (combineCounts.get(`${weapon.weaponId}:${weapon.level}`) ?? 0) > 1,
         stats: buildLoadoutWeaponStats(weapon.detailLines)
       })),
-      items: player.loadout.items
+      items: player.loadout.items.map((item) => ({
+        ...item,
+        iconPath: resolveArenaSurvivorShopIconPath("item", item.itemId, state.visualTheme)
+      }))
     },
     runSummary: choosingLevelBonus ? undefined : player.runSummary,
     playerStats: resolvePlayerStats(player),
-    offers: enrichArenaSurvivorShopOffers(player.shop.offers),
+    offers: enrichArenaSurvivorShopOffers(player.shop.offers, state.visualTheme),
     onBuy: (offerId) => {
       if (!player.playerId) {
         return;

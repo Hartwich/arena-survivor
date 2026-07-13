@@ -82,12 +82,18 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
         return;
       }
 
-      const viewportKey = `${gameState.arenaWidth}x${gameState.arenaHeight}`;
+      const viewportKey = `${gameState.arenaWidth}x${gameState.arenaHeight}:${gameState.visualTheme}`;
       const shouldResetArena =
         this.lastRoundNumber !== state.game?.roundNumber || this.lastViewportKey !== viewportKey;
       const meta = resolveArenaSurvivorRenderMeta(this, gameState);
 
       if (this.arenaBackground) {
+        const backgroundKey = resolveArenaSurvivorBackgroundKey(gameState.visualTheme);
+
+        if (this.arenaBackground.texture.key !== backgroundKey) {
+          this.arenaBackground.setTexture(backgroundKey);
+        }
+
         this.arenaBackground.setVisible(true);
         this.arenaBackground.setPosition(0, 0);
         this.arenaBackground.setDisplaySize(gameState.arenaWidth, gameState.arenaHeight);

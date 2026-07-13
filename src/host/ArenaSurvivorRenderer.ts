@@ -625,6 +625,32 @@ export function drawArenaSurvivorEntities(
   void meta;
   graphics.clear();
 
+  if (state.visualTheme === "obsidian-relay") {
+    const relayPulse = 0.45 + Math.sin(state.elapsedMs / 520) * 0.18;
+    const scanAngle = state.elapsedMs / 2400;
+    const relayNodes = [
+      { x: 150, y: 190 },
+      { x: 1130, y: 190 },
+      { x: 150, y: 530 },
+      { x: 1130, y: 530 }
+    ];
+
+    graphics.lineStyle(2, 0x67e8f9, relayPulse);
+    for (const node of relayNodes) {
+      graphics.strokeCircle(node.x, node.y, 12 + relayPulse * 8);
+    }
+
+    graphics.lineStyle(2, 0xc87545, 0.22);
+    graphics.strokeCircle(state.arenaWidth / 2, state.arenaHeight / 2, 116 + Math.sin(state.elapsedMs / 760) * 7);
+    graphics.lineStyle(2, 0x67e8f9, 0.16);
+    graphics.lineBetween(
+      state.arenaWidth / 2,
+      state.arenaHeight / 2,
+      state.arenaWidth / 2 + Math.cos(scanAngle) * 104,
+      state.arenaHeight / 2 + Math.sin(scanAngle) * 104
+    );
+  }
+
   for (const projectile of state.projectiles) {
     if (!projectile.alive) {
       continue;
@@ -664,7 +690,10 @@ export function drawArenaSurvivorEntities(
     for (let slotIndex = 0; slotIndex < ARENA_SURVIVOR_MAX_WEAPON_SLOTS; slotIndex += 1) {
       const equippedWeapon = occupiedSlots[slotIndex];
 
-      if (equippedWeapon && !resolveArenaSurvivorWeaponCarrySpriteKey(equippedWeapon.weaponId)) {
+      if (
+        equippedWeapon &&
+        !resolveArenaSurvivorWeaponCarrySpriteKey(equippedWeapon.weaponId, state.visualTheme)
+      ) {
         const weaponDisplaySize = resolveWeaponDisplaySize(player, slotIndex);
         const weaponPose = resolveWeaponPose(player, state, slotIndex, slotDistance, {
           x: playerX,
@@ -684,7 +713,7 @@ export function drawArenaSurvivorEntities(
       }
     }
 
-    if (!scene.textures.exists(resolveArenaSurvivorPlayerSpriteKey(player.character.id))) {
+    if (!scene.textures.exists(resolveArenaSurvivorPlayerSpriteKey(player.character.id, state.visualTheme))) {
       const playerColor = player.alive ? toColor(player.color) : toColor("#64748b");
 
       graphics.fillStyle(0x020617, 0.35);
@@ -701,7 +730,7 @@ export function drawArenaSurvivorEntities(
       continue;
     }
 
-    const spriteKey = resolveArenaSurvivorEnemySpriteKey(enemy.definitionId);
+    const spriteKey = resolveArenaSurvivorEnemySpriteKey(enemy.definitionId, state.visualTheme);
     if (spriteKey && scene.textures.exists(spriteKey)) {
       continue;
     }
@@ -732,7 +761,7 @@ export function syncArenaSurvivorSpriteLayer(
   const activePlayerIds = new Set(state.players.map((player) => player.playerId));
 
   for (const player of state.players) {
-    const spriteKey = resolveArenaSurvivorPlayerSpriteKey(player.character.id);
+    const spriteKey = resolveArenaSurvivorPlayerSpriteKey(player.character.id, state.visualTheme);
     let playerSprite = layer.playerSprites.get(player.playerId);
     const playerPosition = resolvePlayerVisualPosition(player, state.elapsedMs);
 
@@ -775,7 +804,7 @@ export function syncArenaSurvivorSpriteLayer(
       continue;
     }
 
-    const spriteKey = resolveArenaSurvivorEnemySpriteKey(enemy.definitionId);
+    const spriteKey = resolveArenaSurvivorEnemySpriteKey(enemy.definitionId, state.visualTheme);
 
     if (!spriteKey || !scene.textures.exists(spriteKey)) {
       continue;
@@ -817,7 +846,10 @@ export function syncArenaSurvivorSpriteLayer(
         continue;
       }
 
-      const spriteKey = resolveArenaSurvivorWeaponCarrySpriteKey(equippedWeapon.weaponId);
+      const spriteKey = resolveArenaSurvivorWeaponCarrySpriteKey(
+        equippedWeapon.weaponId,
+        state.visualTheme
+      );
 
       if (!spriteKey || !scene.textures.exists(spriteKey)) {
         if (weaponSprite) {

@@ -65,7 +65,12 @@ export type ArenaSurvivorInput =
   | ArenaSurvivorShopCombineInput
   | ArenaSurvivorShopRerollInput;
 
+export type ArenaSurvivorVisualTheme = "classic" | "obsidian-relay";
+
 export const arenaSurvivorSetupConfig = {
+  visualTheme: {
+    defaultValue: "obsidian-relay" as ArenaSurvivorVisualTheme
+  },
   difficulty: {
     min: 1,
     max: 5,
@@ -177,6 +182,7 @@ export function resolveArenaSurvivorDifficultyTier(
 export interface ArenaSurvivorConfigureLobbyHostAction {
   type: "configure-lobby";
   difficulty?: number;
+  visualTheme?: ArenaSurvivorVisualTheme;
 }
 
 export interface ArenaSurvivorConfirmLobbyHostAction {
@@ -189,6 +195,7 @@ export type ArenaSurvivorHostAction =
 
 export interface ArenaSurvivorLobbyState {
   difficulty: number;
+  visualTheme: ArenaSurvivorVisualTheme;
   setupConfirmed: boolean;
 }
 
@@ -576,6 +583,7 @@ export interface ArenaSurvivorPlayerState {
 }
 
 export interface ArenaSurvivorState {
+  visualTheme: ArenaSurvivorVisualTheme;
   arenaWidth: number;
   arenaHeight: number;
   waveNumber: number;
