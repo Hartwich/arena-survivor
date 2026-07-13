@@ -13,6 +13,7 @@ Beta. The survival loop, character choice, and lobby setup are already good to p
 The host can select the complete art set during run setup:
 
 - **Obsidian Relay** is the default detailed sci-fi set with its own arena map and a complete one-to-one catalog: 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
+- **Ironbound Dungeon** is a high-resolution fantasy set assembled from CC0 dungeon and vector-armory artwork. It also covers 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
 - **Classic Arena** keeps the original warm organic presentation.
 
 The selection is visual only and does not change gameplay balance.
@@ -87,4 +88,4 @@ Active enemies never exceed the hard cap. Due spawn indicators remain queued unt
 
 Code is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
-Assets, generated media, word lists, prompts, and third-party references may need separate rights review before public store distribution.
+The Ironbound Dungeon sources and their CC0 licenses are documented in [docs/third-party-assets.md](docs/third-party-assets.md). Other assets, generated media, word lists, prompts, and third-party references may need separate rights review before public store distribution.
