@@ -66,6 +66,15 @@ export const arenaSurvivorManifest = {
       archetype: character.archetype,
       description: character.description,
       portraitPath: resolveArenaSurvivorCharacterPortraitPath(character.id, arenaSurvivorDefaultVisualTheme),
+      portraitPathBySetting: {
+        settingKey: arenaSurvivorRoomSettingKeys.visualTheme,
+        values: Object.fromEntries(
+          arenaSurvivorVisualThemeOptions.map((theme) => [
+            theme.id,
+            resolveArenaSurvivorCharacterPortraitPath(character.id, theme.id)
+          ])
+        )
+      },
       visual: {
         primaryColor: character.visual.primaryColor,
         secondaryColor: character.visual.secondaryColor,

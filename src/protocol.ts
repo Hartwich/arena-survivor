@@ -508,6 +508,7 @@ export interface ArenaSurvivorShopOfferState {
   itemId?: string;
   weaponId?: string;
   targetWeaponInstanceId?: string;
+  levelBonusId?: string;
   levelBonusModifiers?: ArenaSurvivorStatModifiers;
   iconPath?: string;
   tags?: string[];

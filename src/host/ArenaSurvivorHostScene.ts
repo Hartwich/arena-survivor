@@ -11,6 +11,7 @@ import {
 } from "./ArenaSurvivorRenderer.js";
 import { createArenaHud } from "./hud/ArenaHud.js";
 import { loadArenaSurvivorAssets, resolveArenaSurvivorBackgroundKey } from "./arenaSurvivorAssets.js";
+import { ArenaSurvivorAudio } from "./ArenaSurvivorAudio.js";
 
 interface HostClientLike {
   subscribe(callback: (state: HostAppStateLike) => void): () => void;
@@ -31,6 +32,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
   private entityGraphics?: Phaser.GameObjects.Graphics;
   private playerHealthGraphics?: Phaser.GameObjects.Graphics;
   private hud?: ReturnType<typeof createArenaHud>;
+  private audio = new ArenaSurvivorAudio();
   private spriteLayer = createArenaSurvivorSpriteLayer();
   private lastRoundNumber: number | null = null;
   private lastViewportKey = "";
@@ -54,6 +56,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     this.entityGraphics = this.add.graphics();
     this.playerHealthGraphics = this.add.graphics().setDepth(12);
     this.hud = createArenaHud();
+    this.audio.attachUnlockListeners();
 
     this.unsubscribe = client.subscribe((state) => {
       const gameState = (state.game?.state ?? null) as ArenaSurvivorState | null;
@@ -63,6 +66,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       }
 
       if (!gameState) {
+        this.audio.syncState(null);
         this.arenaBackground?.setVisible(false);
         this.arenaGraphics.clear();
         this.entityGraphics.clear();
@@ -72,6 +76,9 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
         }
         for (const enemySprite of this.spriteLayer.enemySprites.values()) {
           enemySprite.setVisible(false);
+        }
+        for (const pickupSprite of this.spriteLayer.pickupSprites.values()) {
+          pickupSprite.setVisible(false);
         }
         for (const weaponSprite of this.spriteLayer.weaponSprites.values()) {
           weaponSprite.setVisible(false);
@@ -83,6 +90,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       }
 
       const viewportKey = `${gameState.arenaWidth}x${gameState.arenaHeight}:${gameState.visualTheme}`;
+      this.audio.syncState(gameState);
       const shouldResetArena =
         this.lastRoundNumber !== state.game?.roundNumber || this.lastViewportKey !== viewportKey;
       const meta = resolveArenaSurvivorRenderMeta(this, gameState);
@@ -127,6 +135,10 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
         enemySprite.destroy();
       }
       this.spriteLayer.enemySprites.clear();
+      for (const pickupSprite of this.spriteLayer.pickupSprites.values()) {
+        pickupSprite.destroy();
+      }
+      this.spriteLayer.pickupSprites.clear();
       for (const playerSprite of this.spriteLayer.playerSprites.values()) {
         playerSprite.destroy();
       }
@@ -137,6 +149,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       this.spriteLayer.weaponSprites.clear();
       this.hud?.destroy();
       this.hud = undefined;
+      this.audio.destroy();
       this.lastRoundNumber = null;
       this.lastViewportKey = "";
     });

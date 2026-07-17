@@ -6,10 +6,13 @@ The selectable `frostfire-saga` visual theme was created specifically for Arena 
 
 The final theme contains:
 
-- 13 character visuals
+- 13 armed character portraits
+- 13 matching weaponless gameplay character visuals
 - 7 enemy-family visuals
 - 21 weapon visuals
 - 22 item icons
+- 8 level-up bonus icons
+- 2 collectible pickup visuals
 - one 1280 x 720 arena background
 
 ### Shared art direction
@@ -23,7 +26,12 @@ Polished hand-painted Nordic storybook game art with gouache texture, carved dar
 3. Weapon atlas: a fully occupied 7 x 3 atlas containing the game's 21 ordered weapon concepts on a flat green chroma-key background. Every muzzle, blade tip, arrowhead, and striking end points straight upward so the runtime rotation consistently matches the attack direction.
 4. Item atlas: a 6 x 4 atlas containing the game's 22 ordered passive-item concepts and two empty cells on a flat green chroma-key background.
 5. Arena backgrounds: a strict top-down rectangular Nordic courtyard with a quiet, unobstructed combat area and sparse perimeter detail. The active warm-brown version improves foreground contrast; the cool ice-stone version and the original circular ritual-court version remain available as alternatives.
+6. Weaponless character atlas: the same 13 ordered Frostfire heroes with preserved outfits and identities, but empty hands and no attached combat implements.
+7. Level-up atlas: eight ordered icons for damage, range, critical chance, attack speed, maximum health, armor, movement speed, and life steal.
+8. Pickup atlas: a crimson healing crystal and a gold Nordic material coin.
 
 All prompts prohibited text, labels, logos, trademarks, and watermarks. The final runtime assets are stored under `public/host/arena-survivor/themes/frostfire-saga` and `public/controller/arena-survivor/themes/frostfire-saga`.
 
 The active background is `backgrounds/frostfire-arena.png`. The retained alternatives are `backgrounds/frostfire-arena-ice.png` and `backgrounds/frostfire-arena-ritual.png`.
+
+Frostfire's background music is generated at runtime with the Web Audio API. It uses an original D-minor pentatonic melody, low Nordic-style drone, ice-bell overtones, and a restrained pulse, so no third-party music file or license is required.
