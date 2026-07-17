@@ -11,6 +11,7 @@ import {
 } from "../protocol.js";
 import {
   resolveArenaSurvivorEnemySpriteKey,
+  resolveArenaSurvivorPickupSpriteKey,
   resolveArenaSurvivorPlayerSpriteKey,
   resolveArenaSurvivorWeaponCarrySpriteKey
 } from "./arenaSurvivorAssets.js";
@@ -40,8 +41,30 @@ function resolvePlayerDisplayRadius(radius: number): number {
   return radius * arenaSurvivorVisualConfig.player.diameterScale;
 }
 
-function resolveEnemyDisplayRadius(radius: number): number {
-  return radius * arenaSurvivorVisualConfig.enemy.diameterScale;
+const enemyVisualScaleByDefinition: Readonly<Record<string, number>> = {
+  "slime-blob": 0.9,
+  "needle-runner": 0.9,
+  "loot-runner": 0.88,
+  "fang-crawler": 0.96,
+  "ember-wisp": 0.96,
+  "ash-spitter": 0.98,
+  "toxic-shroom": 1,
+  "stone-brute": 1.06,
+  "shell-bulwark": 1.08,
+  "plague-lobber": 1.08,
+  "elite-spitter": 1.08,
+  "charger-hulk": 1.1,
+  "iron-mauler": 1.14,
+  "scrap-goliath": 1.18,
+  "crimson-overlord": 1.22
+};
+
+function resolveEnemyDisplayRadius(radius: number, definitionId: string): number {
+  return (
+    radius *
+    arenaSurvivorVisualConfig.enemy.diameterScale *
+    (enemyVisualScaleByDefinition[definitionId] ?? 1)
+  );
 }
 
 function hashSeed(input: string): number {
@@ -475,6 +498,7 @@ export interface ArenaSurvivorRenderMeta {
 export interface ArenaSurvivorSpriteLayer {
   playerSprites: Map<string, Phaser.GameObjects.Image>;
   enemySprites: Map<string, Phaser.GameObjects.Image>;
+  pickupSprites: Map<string, Phaser.GameObjects.Image>;
   weaponSprites: Map<string, Phaser.GameObjects.Image>;
 }
 
@@ -556,6 +580,7 @@ export function createArenaSurvivorSpriteLayer(): ArenaSurvivorSpriteLayer {
   return {
     playerSprites: new Map(),
     enemySprites: new Map(),
+    pickupSprites: new Map(),
     weaponSprites: new Map()
   };
 }
@@ -668,28 +693,6 @@ export function drawArenaSurvivorEntities(
       const outerY = centerY + Math.sin(angle) * (runeRadius + 8);
       graphics.lineBetween(innerX, innerY, outerX, outerY);
     }
-  } else if (state.visualTheme === "frostfire-saga") {
-    const centerX = state.arenaWidth / 2;
-    const centerY = state.arenaHeight / 2;
-    const pulse = 0.28 + Math.sin(state.elapsedMs / 580) * 0.1;
-    const rotation = state.elapsedMs / 5200;
-
-    graphics.lineStyle(3, 0x38bdf8, pulse);
-    graphics.strokeCircle(centerX, centerY, 94 + Math.sin(state.elapsedMs / 820) * 5);
-    graphics.lineStyle(2, 0xfb923c, pulse + 0.12);
-
-    for (let index = 0; index < 6; index += 1) {
-      const angle = rotation + (Math.PI * 2 * index) / 6;
-      const x = centerX + Math.cos(angle) * 108;
-      const y = centerY + Math.sin(angle) * 108;
-      graphics.strokeCircle(x, y, 6 + Math.sin(state.elapsedMs / 420 + index) * 2);
-      graphics.lineBetween(
-        centerX + Math.cos(angle) * 82,
-        centerY + Math.sin(angle) * 82,
-        x,
-        y
-      );
-    }
   }
 
   for (const projectile of state.projectiles) {
@@ -711,6 +714,10 @@ export function drawArenaSurvivorEntities(
   }
 
   for (const pickup of state.pickups) {
+    if (resolveArenaSurvivorPickupSpriteKey(pickup.kind, state.visualTheme)) {
+      continue;
+    }
+
     if (pickup.kind === "health") {
       drawHealthPickup(graphics, pickup);
       continue;
@@ -780,7 +787,9 @@ export function drawArenaSurvivorEntities(
     const px = enemy.x;
     const py = enemy.y;
     const radius = Math.max(8, enemy.radius);
-    const displayRadius = resolveEnemyDisplayRadius(radius) * resolveEnemyPulseScale(enemy.id, state.elapsedMs);
+    const displayRadius =
+      resolveEnemyDisplayRadius(radius, enemy.definitionId) *
+      resolveEnemyPulseScale(enemy.id, state.elapsedMs);
     const hpRatio = enemy.maxHp > 0 ? Math.max(0, Math.min(1, enemy.hp / enemy.maxHp)) : 0;
 
     graphics.fillStyle(enemyColor, 0.8);
@@ -838,7 +847,42 @@ export function syncArenaSurvivorSpriteLayer(
   }
 
   const activeEnemyIds = new Set(state.enemies.filter((enemy) => enemy.alive).map((enemy) => enemy.id));
+  const activePickupIds = new Set<string>();
   const activeWeaponKeys = new Set<string>();
+
+  for (const pickup of state.pickups) {
+    const spriteKey = resolveArenaSurvivorPickupSpriteKey(pickup.kind, state.visualTheme);
+
+    if (!spriteKey || !scene.textures.exists(spriteKey)) {
+      continue;
+    }
+
+    let pickupSprite = layer.pickupSprites.get(pickup.id);
+
+    if (!pickupSprite) {
+      pickupSprite = scene.add.image(0, 0, spriteKey);
+      pickupSprite.setDepth(8);
+      pickupSprite.setOrigin(0.5);
+      layer.pickupSprites.set(pickup.id, pickupSprite);
+    } else if (pickupSprite.texture.key !== spriteKey) {
+      pickupSprite.setTexture(spriteKey);
+    }
+
+    const pulse = 0.94 + Math.sin(pickup.ageMs / 150) * 0.08;
+    const displaySize = Math.max(pickup.kind === "health" ? 30 : 26, pickup.radius * 2.8) * pulse;
+    pickupSprite.setVisible(true);
+    pickupSprite.setPosition(pickup.x, pickup.y);
+    pickupSprite.setDisplaySize(displaySize, displaySize);
+    pickupSprite.setAlpha(0.98);
+    activePickupIds.add(pickup.id);
+  }
+
+  for (const [pickupId, pickupSprite] of layer.pickupSprites) {
+    if (!activePickupIds.has(pickupId)) {
+      pickupSprite.destroy();
+      layer.pickupSprites.delete(pickupId);
+    }
+  }
 
   for (const enemy of state.enemies) {
     if (!enemy.alive) {
@@ -862,7 +906,10 @@ export function syncArenaSurvivorSpriteLayer(
       enemySprite.setTexture(spriteKey);
     }
 
-    const displaySize = resolveEnemyDisplayRadius(enemy.radius) * 2 * resolveEnemyPulseScale(enemy.id, state.elapsedMs);
+    const displaySize =
+      resolveEnemyDisplayRadius(enemy.radius, enemy.definitionId) *
+      2 *
+      resolveEnemyPulseScale(enemy.id, state.elapsedMs);
 
     enemySprite.setVisible(true);
     enemySprite.setPosition(enemy.x, enemy.y);

@@ -278,3 +278,12 @@ export function resolveArenaSurvivorShopIconPath(
     assetId
   );
 }
+
+export function resolveArenaSurvivorLevelBonusIconPath(
+  bonusId: string,
+  theme: ArenaSurvivorVisualTheme
+): string | undefined {
+  return theme === "frostfire-saga"
+    ? `/arena-survivor/themes/frostfire-saga/upgrades/${bonusId}.png`
+    : undefined;
+}

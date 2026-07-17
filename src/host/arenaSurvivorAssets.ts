@@ -168,13 +168,13 @@ const ironboundWeaponCarryAssets = weaponIds.map((id) => ({
 
 const frostfireCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => {
   const assetId = resolveArenaSurvivorCharacterThemeAssetId(entry.id, "frostfire-saga");
-  const assetPath = resolveArenaSurvivorThemeAssetPath("frostfire-saga", "characters", assetId);
+  const portraitPath = resolveArenaSurvivorThemeAssetPath("frostfire-saga", "characters", assetId);
   return {
     id: entry.id,
     spriteKey: `arena-survivor-frostfire-character-${entry.id}`,
-    spritePath: assetPath,
+    spritePath: `/arena-survivor/themes/frostfire-saga/characters-unarmed/${assetId}.png`,
     portraitKey: `arena-survivor-frostfire-character-portrait-${entry.id}`,
-    portraitPath: assetPath
+    portraitPath
   };
 });
 
@@ -199,6 +199,19 @@ const frostfireWeaponCarryAssets = weaponIds.map((id) => ({
     resolveArenaSurvivorWeaponThemeAssetId(id, "frostfire-saga")
   )
 }));
+
+const frostfirePickupAssets = [
+  {
+    id: "health",
+    spriteKey: "arena-survivor-frostfire-pickup-health",
+    spritePath: "/arena-survivor/themes/frostfire-saga/pickups/health.png"
+  },
+  {
+    id: "material",
+    spriteKey: "arena-survivor-frostfire-pickup-material",
+    spritePath: "/arena-survivor/themes/frostfire-saga/pickups/material.png"
+  }
+] as const;
 
 function loadArenaSurvivorImage(scene: Phaser.Scene, key: string, path: string): void {
   if (scene.textures.exists(key)) {
@@ -234,6 +247,10 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
     ...ironboundWeaponCarryAssets,
     ...frostfireWeaponCarryAssets
   ]) {
+    loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
+  }
+
+  for (const asset of frostfirePickupAssets) {
     loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
   }
 
@@ -338,6 +355,17 @@ export function resolveArenaSurvivorWeaponCarrySpriteKey(
         : arenaSurvivorWeaponCarryAssets;
   const asset = assets.find((entry) => entry.id === weaponId);
   return asset?.spriteKey ?? null;
+}
+
+export function resolveArenaSurvivorPickupSpriteKey(
+  kind: "health" | "material",
+  theme: ArenaSurvivorVisualTheme
+): string | null {
+  if (theme !== "frostfire-saga") {
+    return null;
+  }
+
+  return frostfirePickupAssets.find((asset) => asset.id === kind)?.spriteKey ?? null;
 }
 
 export function resolveArenaSurvivorBackgroundKey(theme: ArenaSurvivorVisualTheme = "classic"): string {

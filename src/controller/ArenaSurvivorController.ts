@@ -4,7 +4,10 @@ import type {
   ArenaSurvivorState,
   ArenaSurvivorVisualTheme
 } from "../protocol.js";
-import { resolveArenaSurvivorShopIconPath } from "../visualThemes.js";
+import {
+  resolveArenaSurvivorLevelBonusIconPath,
+  resolveArenaSurvivorShopIconPath
+} from "../visualThemes.js";
 import {
   createArenaSurvivorMoveInput,
   createArenaSurvivorShopInput,
@@ -184,6 +187,8 @@ function enrichArenaSurvivorShopOffers(
       ? resolveArenaSurvivorShopIconPath("weapon", offer.weaponId, visualTheme)
       : offer.kind === "item" && offer.itemId
         ? resolveArenaSurvivorShopIconPath("item", offer.itemId, visualTheme)
+        : offer.kind === "upgrade" && offer.levelBonusId
+          ? resolveArenaSurvivorLevelBonusIconPath(offer.levelBonusId, visualTheme)
         : offer.iconPath;
     const themedOffer = { ...offer, iconPath };
 

@@ -49,6 +49,7 @@ export function createArenaSurvivorLevelUpShopState(
       affordable: true,
       purchased: false,
       targetLevel: player.level - player.pendingLevelUpChoices + 1,
+      levelBonusId: definition.id,
       levelBonusModifiers: { ...definition.modifiers },
       tags: [languageKey === "en" ? "Level bonus" : "Level-Bonus"],
       summary: definition.description[languageKey],

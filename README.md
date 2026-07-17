@@ -14,10 +14,10 @@ The host can select the complete art set during run setup:
 
 - **Obsidian Relay** is the default detailed sci-fi set with its own arena map and a complete one-to-one catalog: 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
 - **Ironbound Dungeon** is a high-resolution fantasy set assembled from CC0 dungeon and vector-armory artwork. It also covers 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
-- **Frostfire Saga** is an original hand-painted Nordic storybook set generated specifically for Arena Survivor. It covers the same complete catalog and includes its own illustrated arena and HUD palette.
+- **Frostfire Saga** is an original hand-painted Nordic storybook set generated specifically for Arena Survivor. It covers the same complete catalog and includes its own illustrated arena, HUD palette, waffenlose gameplay sprites, themed pickups, level-up icons, and procedural Nordic background music. Its armed character illustrations remain the lobby-selection portraits.
 - **Classic Arena** keeps the original warm organic presentation.
 
-The selection is visual only and does not change gameplay balance.
+The selected theme is synchronized to the phone lobby so character portraits update before the run starts. The selection is otherwise presentational and does not change gameplay balance.
 
 ## Run Through Open Party Lab
 
