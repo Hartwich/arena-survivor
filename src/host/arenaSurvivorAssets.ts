@@ -66,7 +66,8 @@ const weaponIds = [
 const arenaSurvivorBackgroundKeys: Record<ArenaSurvivorVisualTheme, string> = {
   classic: "arena-survivor-background",
   "obsidian-relay": "arena-survivor-background-obsidian-relay",
-  "ironbound-dungeon": "arena-survivor-background-ironbound-dungeon"
+  "ironbound-dungeon": "arena-survivor-background-ironbound-dungeon",
+  "frostfire-saga": "arena-survivor-background-frostfire-saga"
 };
 
 export interface ArenaSurvivorAssetDescriptor {
@@ -165,6 +166,40 @@ const ironboundWeaponCarryAssets = weaponIds.map((id) => ({
   )
 }));
 
+const frostfireCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => {
+  const assetId = resolveArenaSurvivorCharacterThemeAssetId(entry.id, "frostfire-saga");
+  const assetPath = resolveArenaSurvivorThemeAssetPath("frostfire-saga", "characters", assetId);
+  return {
+    id: entry.id,
+    spriteKey: `arena-survivor-frostfire-character-${entry.id}`,
+    spritePath: assetPath,
+    portraitKey: `arena-survivor-frostfire-character-portrait-${entry.id}`,
+    portraitPath: assetPath
+  };
+});
+
+const frostfireEnemyAssets: readonly ArenaSurvivorAssetDescriptor[] = enemyAssetIds.map((entry) => {
+  const assetId = resolveArenaSurvivorEnemyThemeAssetId(entry.id, "frostfire-saga");
+  const assetPath = resolveArenaSurvivorThemeAssetPath("frostfire-saga", "enemies", assetId);
+  return {
+    id: entry.id,
+    spriteKey: `arena-survivor-frostfire-enemy-${entry.id}`,
+    spritePath: assetPath,
+    portraitKey: `arena-survivor-frostfire-enemy-portrait-${entry.id}`,
+    portraitPath: assetPath
+  };
+});
+
+const frostfireWeaponCarryAssets = weaponIds.map((id) => ({
+  id,
+  spriteKey: `arena-survivor-frostfire-weapon-${id}`,
+  spritePath: resolveArenaSurvivorThemeAssetPath(
+    "frostfire-saga",
+    "weapons",
+    resolveArenaSurvivorWeaponThemeAssetId(id, "frostfire-saga")
+  )
+}));
+
 function loadArenaSurvivorImage(scene: Phaser.Scene, key: string, path: string): void {
   if (scene.textures.exists(key)) {
     return;
@@ -185,7 +220,9 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
     ...obsidianCharacterAssets,
     ...obsidianEnemyAssets,
     ...ironboundCharacterAssets,
-    ...ironboundEnemyAssets
+    ...ironboundEnemyAssets,
+    ...frostfireCharacterAssets,
+    ...frostfireEnemyAssets
   ]) {
     loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
     loadArenaSurvivorImage(scene, asset.portraitKey, asset.portraitPath);
@@ -194,7 +231,8 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
   for (const asset of [
     ...arenaSurvivorWeaponCarryAssets,
     ...obsidianWeaponCarryAssets,
-    ...ironboundWeaponCarryAssets
+    ...ironboundWeaponCarryAssets,
+    ...frostfireWeaponCarryAssets
   ]) {
     loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
   }
@@ -216,6 +254,13 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
       "/arena-survivor/themes/ironbound-dungeon/backgrounds/crypt-floor.png"
     );
   }
+
+  if (!scene.textures.exists(arenaSurvivorBackgroundKeys["frostfire-saga"])) {
+    scene.load.image(
+      arenaSurvivorBackgroundKeys["frostfire-saga"],
+      "/arena-survivor/themes/frostfire-saga/backgrounds/frostfire-arena.png"
+    );
+  }
 }
 
 function resolveCharacterAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly ArenaSurvivorAssetDescriptor[] {
@@ -224,6 +269,9 @@ function resolveCharacterAssetsForTheme(theme: ArenaSurvivorVisualTheme): readon
   }
   if (theme === "ironbound-dungeon") {
     return ironboundCharacterAssets;
+  }
+  if (theme === "frostfire-saga") {
+    return frostfireCharacterAssets;
   }
   return arenaSurvivorCharacterAssets;
 }
@@ -234,6 +282,9 @@ function resolveEnemyAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly A
   }
   if (theme === "ironbound-dungeon") {
     return ironboundEnemyAssets;
+  }
+  if (theme === "frostfire-saga") {
+    return frostfireEnemyAssets;
   }
   return arenaSurvivorEnemyAssets;
 }
@@ -282,7 +333,9 @@ export function resolveArenaSurvivorWeaponCarrySpriteKey(
     ? obsidianWeaponCarryAssets
     : theme === "ironbound-dungeon"
       ? ironboundWeaponCarryAssets
-      : arenaSurvivorWeaponCarryAssets;
+      : theme === "frostfire-saga"
+        ? frostfireWeaponCarryAssets
+        : arenaSurvivorWeaponCarryAssets;
   const asset = assets.find((entry) => entry.id === weaponId);
   return asset?.spriteKey ?? null;
 }

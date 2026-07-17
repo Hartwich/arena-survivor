@@ -281,6 +281,7 @@ export function createArenaHud(): ArenaHud {
     const en = room?.language === "en";
     const obsidianRelay = state?.visualTheme === "obsidian-relay";
     const ironboundDungeon = state?.visualTheme === "ironbound-dungeon";
+    const frostfireSaga = state?.visualTheme === "frostfire-saga";
     const runningRound = state?.result.outcome === "running";
     const roundDurationMs = state ? state.elapsedMs + state.remainingMs : 0;
     const roundProgress = state
@@ -297,23 +298,31 @@ export function createArenaHud(): ArenaHud {
       ? "linear-gradient(90deg, #d97745, #67e8f9)"
       : ironboundDungeon
         ? "linear-gradient(90deg, #7c3aed, #facc15)"
-      : "linear-gradient(90deg, #38bdf8, #22c55e)";
+        : frostfireSaga
+          ? "linear-gradient(90deg, #38bdf8, #fb923c)"
+          : "linear-gradient(90deg, #38bdf8, #22c55e)";
     roundProgressTrack.style.opacity = state ? "1" : "0";
     metaBar.style.background = obsidianRelay
       ? "rgba(5, 15, 22, 0.9)"
       : ironboundDungeon
         ? "rgba(24, 9, 38, 0.92)"
-        : "rgba(15, 23, 42, 0.84)";
+        : frostfireSaga
+          ? "rgba(7, 20, 34, 0.92)"
+          : "rgba(15, 23, 42, 0.84)";
     metaBar.style.borderColor = obsidianRelay
       ? "rgba(103, 232, 249, 0.42)"
       : ironboundDungeon
         ? "rgba(250, 204, 21, 0.5)"
-        : "rgba(148, 163, 184, 0.22)";
+        : frostfireSaga
+          ? "rgba(251, 146, 60, 0.52)"
+          : "rgba(148, 163, 184, 0.22)";
     summaryCard.style.background = obsidianRelay
       ? "rgba(2, 9, 14, 0.94)"
       : ironboundDungeon
         ? "rgba(19, 7, 31, 0.95)"
-        : "rgba(2, 6, 23, 0.9)";
+        : frostfireSaga
+          ? "rgba(5, 15, 27, 0.95)"
+          : "rgba(2, 6, 23, 0.9)";
 
     for (let index = 0; index < playerCards.length; index += 1) {
       const card = playerCards[index];
@@ -337,7 +346,9 @@ export function createArenaHud(): ArenaHud {
         ? "rgba(5, 15, 22, 0.9)"
         : ironboundDungeon
           ? "rgba(24, 9, 38, 0.9)"
-          : "rgba(15, 23, 42, 0.84)";
+          : frostfireSaga
+            ? "rgba(7, 20, 34, 0.9)"
+            : "rgba(15, 23, 42, 0.84)";
       card.title.textContent = player.name;
       card.title.title = `${player.name} (${player.character.name})`;
       card.materialBadge.textContent = `M ${player.materials}`;

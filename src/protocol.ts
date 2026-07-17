@@ -65,7 +65,11 @@ export type ArenaSurvivorInput =
   | ArenaSurvivorShopCombineInput
   | ArenaSurvivorShopRerollInput;
 
-export type ArenaSurvivorVisualTheme = "classic" | "obsidian-relay" | "ironbound-dungeon";
+export type ArenaSurvivorVisualTheme =
+  | "classic"
+  | "obsidian-relay"
+  | "ironbound-dungeon"
+  | "frostfire-saga";
 
 export const arenaSurvivorSetupConfig = {
   visualTheme: {
