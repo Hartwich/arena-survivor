@@ -668,6 +668,28 @@ export function drawArenaSurvivorEntities(
       const outerY = centerY + Math.sin(angle) * (runeRadius + 8);
       graphics.lineBetween(innerX, innerY, outerX, outerY);
     }
+  } else if (state.visualTheme === "frostfire-saga") {
+    const centerX = state.arenaWidth / 2;
+    const centerY = state.arenaHeight / 2;
+    const pulse = 0.28 + Math.sin(state.elapsedMs / 580) * 0.1;
+    const rotation = state.elapsedMs / 5200;
+
+    graphics.lineStyle(3, 0x38bdf8, pulse);
+    graphics.strokeCircle(centerX, centerY, 94 + Math.sin(state.elapsedMs / 820) * 5);
+    graphics.lineStyle(2, 0xfb923c, pulse + 0.12);
+
+    for (let index = 0; index < 6; index += 1) {
+      const angle = rotation + (Math.PI * 2 * index) / 6;
+      const x = centerX + Math.cos(angle) * 108;
+      const y = centerY + Math.sin(angle) * 108;
+      graphics.strokeCircle(x, y, 6 + Math.sin(state.elapsedMs / 420 + index) * 2);
+      graphics.lineBetween(
+        centerX + Math.cos(angle) * 82,
+        centerY + Math.sin(angle) * 82,
+        x,
+        y
+      );
+    }
   }
 
   for (const projectile of state.projectiles) {

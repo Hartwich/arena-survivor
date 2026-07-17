@@ -17,6 +17,11 @@ export const arenaSurvivorVisualThemeOptions = [
     id: "ironbound-dungeon",
     label: "Ironbound Dungeon",
     description: "Hochaufloesende CC0-Dungeon-Grafiken, violetter Stein, Gold und klassische Fantasy."
+  },
+  {
+    id: "frostfire-saga",
+    label: "Frostfire Saga",
+    description: "Handgemalte nordische Storybook-Welt mit Eis, Glut, Runen und geschnitztem Holz."
   }
 ] as const;
 
@@ -145,46 +150,88 @@ const ironboundItemAssets: Record<string, string> = Object.fromEntries(
   Object.keys(itemAssets).map((id) => [id, id])
 );
 
+const frostfireCharacterAssets = ironboundCharacterAssets;
+
+const frostfireEnemyAssets: Record<string, string> = {
+  "slime-blob": "frost-slime",
+  "fang-crawler": "frost-wolf",
+  "needle-runner": "frost-wolf",
+  "stone-brute": "rune-troll",
+  "shell-bulwark": "rune-troll",
+  "ember-wisp": "ember-spirit",
+  "toxic-shroom": "venom-shroom",
+  "ash-spitter": "ember-spirit",
+  "plague-lobber": "venom-shroom",
+  "iron-mauler": "rune-troll",
+  "loot-runner": "frost-slime",
+  "charger-hulk": "frost-wolf",
+  "elite-spitter": "ember-spirit",
+  "scrap-goliath": "timber-golem",
+  "crimson-overlord": "frostfire-dragon"
+};
+
+const frostfireWeaponAssets = ironboundWeaponAssets;
+const frostfireItemAssets = ironboundItemAssets;
+
 type ArenaSurvivorAlternateVisualTheme = Exclude<ArenaSurvivorVisualTheme, "classic">;
 
 export function isArenaSurvivorVisualTheme(value: unknown): value is ArenaSurvivorVisualTheme {
-  return value === "classic" || value === "obsidian-relay" || value === "ironbound-dungeon";
+  return value === "classic"
+    || value === "obsidian-relay"
+    || value === "ironbound-dungeon"
+    || value === "frostfire-saga";
 }
 
 export function resolveArenaSurvivorCharacterThemeAssetId(
   characterId: string,
   theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
 ): string {
-  return theme === "ironbound-dungeon"
-    ? ironboundCharacterAssets[characterId] ?? "rundling-allround"
-    : characterAssets[characterId] ?? "relay-artificer";
+  if (theme === "frostfire-saga") {
+    return frostfireCharacterAssets[characterId] ?? "rundling-allround";
+  }
+  if (theme === "ironbound-dungeon") {
+    return ironboundCharacterAssets[characterId] ?? "rundling-allround";
+  }
+  return characterAssets[characterId] ?? "relay-artificer";
 }
 
 export function resolveArenaSurvivorEnemyThemeAssetId(
   enemyId: string,
   theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
 ): string {
-  return theme === "ironbound-dungeon"
-    ? ironboundEnemyAssets[enemyId] ?? "shade-scorpion"
-    : enemyAssets[enemyId] ?? "nano-swarm";
+  if (theme === "frostfire-saga") {
+    return frostfireEnemyAssets[enemyId] ?? "frost-slime";
+  }
+  if (theme === "ironbound-dungeon") {
+    return ironboundEnemyAssets[enemyId] ?? "shade-scorpion";
+  }
+  return enemyAssets[enemyId] ?? "nano-swarm";
 }
 
 export function resolveArenaSurvivorWeaponThemeAssetId(
   weaponId: string,
   theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
 ): string {
-  return theme === "ironbound-dungeon"
-    ? ironboundWeaponAssets[weaponId] ?? "rust-blade"
-    : weaponAssets[weaponId] ?? "pulse-carbine";
+  if (theme === "frostfire-saga") {
+    return frostfireWeaponAssets[weaponId] ?? "rust-blade";
+  }
+  if (theme === "ironbound-dungeon") {
+    return ironboundWeaponAssets[weaponId] ?? "rust-blade";
+  }
+  return weaponAssets[weaponId] ?? "pulse-carbine";
 }
 
 export function resolveArenaSurvivorItemThemeAssetId(
   itemId: string,
   theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
 ): string {
-  return theme === "ironbound-dungeon"
-    ? ironboundItemAssets[itemId] ?? "arcane-crystal"
-    : itemAssets[itemId] ?? "arcane-module";
+  if (theme === "frostfire-saga") {
+    return frostfireItemAssets[itemId] ?? "arcane-crystal";
+  }
+  if (theme === "ironbound-dungeon") {
+    return ironboundItemAssets[itemId] ?? "arcane-crystal";
+  }
+  return itemAssets[itemId] ?? "arcane-module";
 }
 
 export function resolveArenaSurvivorThemeAssetPath(
@@ -192,7 +239,7 @@ export function resolveArenaSurvivorThemeAssetPath(
   category: "characters" | "enemies" | "weapons" | "items",
   assetId: string
 ): string {
-  const extension = theme === "ironbound-dungeon" ? "png" : "svg";
+  const extension = theme === "obsidian-relay" ? "svg" : "png";
   return `/arena-survivor/themes/${theme}/${category}/${assetId}.${extension}`;
 }
 
