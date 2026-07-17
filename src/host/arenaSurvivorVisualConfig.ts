@@ -58,13 +58,13 @@ export const arenaSurvivorVisualConfig: ArenaSurvivorVisualConfig = {
     pulseSpeedVarianceMs: 60
   },
   weaponSlots: {
-    spriteDisplaySizeMultiplier: 1.4,
-    minSpriteDisplaySize: 16,
+    spriteDisplaySizeMultiplier: 1.75,
+    minSpriteDisplaySize: 20,
     fallbackDotRadiusMultiplier: 0.16,
     minFallbackDotRadius: 2.8,
-    meleeSpriteRangeRatio: 0.34,
-    meleeMinSpriteDisplaySize: 26,
-    meleeMaxSpriteDisplaySize: 68,
+    meleeSpriteRangeRatio: 0.42,
+    meleeMinSpriteDisplaySize: 32,
+    meleeMaxSpriteDisplaySize: 84,
     meleeSpriteTipRatio: 0.42
   }
 };
