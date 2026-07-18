@@ -202,7 +202,9 @@ function resolveWeaponDisplaySize(
   );
 
   if (equippedWeapon?.category !== "melee") {
-    return baseDisplaySize;
+    return equippedWeapon?.category === "ranged"
+      ? baseDisplaySize * arenaSurvivorVisualConfig.weaponSlots.rangedSpriteScale
+      : baseDisplaySize;
   }
 
   const effectiveRange = weaponState?.effectiveRange ?? weaponState?.lastAttackReachDistance ?? 0;
@@ -914,6 +916,7 @@ export function syncArenaSurvivorSpriteLayer(
     enemySprite.setVisible(true);
     enemySprite.setPosition(enemy.x, enemy.y);
     enemySprite.setDisplaySize(displaySize, displaySize);
+    enemySprite.setFlipX(enemy.vx < -1);
     enemySprite.setAlpha(0.92);
   }
 
@@ -970,7 +973,15 @@ export function syncArenaSurvivorSpriteLayer(
       nextWeaponSprite.setVisible(player.alive);
       nextWeaponSprite.setPosition(weaponPose.x, weaponPose.y);
       nextWeaponSprite.setDisplaySize(displaySize, displaySize);
-      nextWeaponSprite.setRotation(weaponPose.aimAngle + Math.PI / 2);
+      const mirrorRangedWeapon =
+        equippedWeapon.category === "ranged" &&
+        Math.cos(weaponPose.aimAngle) < 0;
+      nextWeaponSprite.setFlipY(mirrorRangedWeapon);
+      nextWeaponSprite.setRotation(
+        mirrorRangedWeapon
+          ? weaponPose.aimAngle - Math.PI / 2
+          : weaponPose.aimAngle + Math.PI / 2
+      );
       nextWeaponSprite.setAlpha(player.alive ? 0.98 : 0.38);
       activeWeaponKeys.add(spriteId);
     }

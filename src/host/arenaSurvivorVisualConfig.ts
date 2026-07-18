@@ -25,6 +25,7 @@ export interface ArenaSurvivorVisualConfig {
   weaponSlots: {
     spriteDisplaySizeMultiplier: number;
     minSpriteDisplaySize: number;
+    rangedSpriteScale: number;
     fallbackDotRadiusMultiplier: number;
     minFallbackDotRadius: number;
     meleeSpriteRangeRatio: number;
@@ -60,6 +61,7 @@ export const arenaSurvivorVisualConfig: ArenaSurvivorVisualConfig = {
   weaponSlots: {
     spriteDisplaySizeMultiplier: 1.75,
     minSpriteDisplaySize: 20,
+    rangedSpriteScale: 1.25,
     fallbackDotRadiusMultiplier: 0.16,
     minFallbackDotRadius: 2.8,
     meleeSpriteRangeRatio: 0.42,
