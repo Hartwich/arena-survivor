@@ -56,7 +56,7 @@ export interface ArenaSurvivorPlayerCarryRecord extends ArenaSurvivorPlayerCarry
 }
 
 function defaultItemIconPath(itemId: string): string {
-  return `/arena-survivor/item-icons/${itemId}.svg`;
+  return `/arena-survivor/themes/classic/items/${itemId}.svg`;
 }
 
 function createWeaponInstanceId(): string {
@@ -72,11 +72,11 @@ function resolveItemIconPath(itemId: string): string {
 }
 
 function weaponShopIconPath(weaponId: string): string {
-  return `/arena-survivor/weapons/shop/${weaponId}.svg`;
+  return `/arena-survivor/themes/classic/weapons/shop/${weaponId}.svg`;
 }
 
 function weaponCarrySpritePath(weaponId: string): string {
-  return `/arena-survivor/weapons/carry/${weaponId}_carry.svg`;
+  return `/arena-survivor/themes/classic/weapons/carry/${weaponId}_carry.svg`;
 }
 
 const arenaSurvivorShopOfferCount = 4;
@@ -347,7 +347,7 @@ function sanitizeCharacter(
     title: definition.title,
     archetype: definition.archetype,
     description: definition.description,
-    portraitPath: `/arena-survivor/characters/portraits/${definition.id}.svg`,
+    portraitPath: `/arena-survivor/themes/classic/characters/portraits/${definition.id}.svg`,
     visual: {
       primaryColor: definition.visual.primaryColor,
       secondaryColor: definition.visual.secondaryColor,

@@ -68,12 +68,11 @@ export type ArenaSurvivorInput =
 export type ArenaSurvivorVisualTheme =
   | "classic"
   | "obsidian-relay"
-  | "ironbound-dungeon"
   | "frostfire-saga";
 
 export const arenaSurvivorSetupConfig = {
   visualTheme: {
-    defaultValue: "obsidian-relay" as ArenaSurvivorVisualTheme
+    defaultValue: "frostfire-saga" as ArenaSurvivorVisualTheme
   },
   difficulty: {
     min: 1,

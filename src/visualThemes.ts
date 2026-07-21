@@ -1,8 +1,13 @@
 import type { ArenaSurvivorVisualTheme } from "./protocol.js";
 
-export const arenaSurvivorDefaultVisualTheme: ArenaSurvivorVisualTheme = "obsidian-relay";
+export const arenaSurvivorDefaultVisualTheme: ArenaSurvivorVisualTheme = "frostfire-saga";
 
 export const arenaSurvivorVisualThemeOptions = [
+  {
+    id: "frostfire-saga",
+    label: "Frostfire Saga",
+    description: "Handgemalte nordische Storybook-Welt mit Eis, Glut, Runen und geschnitztem Holz."
+  },
   {
     id: "obsidian-relay",
     label: "Obsidian Relay",
@@ -12,16 +17,6 @@ export const arenaSurvivorVisualThemeOptions = [
     id: "classic",
     label: "Classic Arena",
     description: "Das bisherige warme, organische Arena-Design."
-  },
-  {
-    id: "ironbound-dungeon",
-    label: "Ironbound Dungeon",
-    description: "Hochaufloesende CC0-Dungeon-Grafiken, violetter Stein, Gold und klassische Fantasy."
-  },
-  {
-    id: "frostfire-saga",
-    label: "Frostfire Saga",
-    description: "Handgemalte nordische Storybook-Welt mit Eis, Glut, Runen und geschnitztem Holz."
   }
 ] as const;
 
@@ -108,7 +103,7 @@ const itemAssets: Record<string, string> = {
   "harvest-sprout": "harvest-sprout"
 };
 
-const ironboundCharacterAssets: Record<string, string> = {
+const frostfireCharacterAssets: Record<string, string> = {
   "schrotto-scharfschuss": "schrotto-scharfschuss",
   "jaeger-ranger": "jaeger-ranger",
   "kloppbert-keulenwucht": "kloppbert-keulenwucht",
@@ -124,33 +119,13 @@ const ironboundCharacterAssets: Record<string, string> = {
   "ackerling-farmer": "ackerling-farmer"
 };
 
-const ironboundEnemyAssets: Record<string, string> = {
-  "slime-blob": "shade-scorpion",
-  "fang-crawler": "night-scarab",
-  "needle-runner": "shade-scorpion",
-  "stone-brute": "stone-horror",
-  "shell-bulwark": "stone-horror",
-  "ember-wisp": "vault-eye",
-  "toxic-shroom": "bone-serpent",
-  "ash-spitter": "vault-eye",
-  "plague-lobber": "bone-serpent",
-  "iron-mauler": "grave-skeleton",
-  "loot-runner": "crypt-goblin",
-  "charger-hulk": "night-scarab",
-  "elite-spitter": "vault-eye",
-  "scrap-goliath": "grave-skeleton",
-  "crimson-overlord": "vault-eye"
-};
-
-const ironboundWeaponAssets: Record<string, string> = Object.fromEntries(
+const frostfireWeaponAssets: Record<string, string> = Object.fromEntries(
   Object.keys(weaponAssets).map((id) => [id, id])
 );
 
-const ironboundItemAssets: Record<string, string> = Object.fromEntries(
+const frostfireItemAssets: Record<string, string> = Object.fromEntries(
   Object.keys(itemAssets).map((id) => [id, id])
 );
-
-const frostfireCharacterAssets = ironboundCharacterAssets;
 
 const frostfireEnemyAssets: Record<string, string> = {
   "slime-blob": "frost-slime",
@@ -170,15 +145,11 @@ const frostfireEnemyAssets: Record<string, string> = {
   "crimson-overlord": "frostfire-dragon"
 };
 
-const frostfireWeaponAssets = ironboundWeaponAssets;
-const frostfireItemAssets = ironboundItemAssets;
-
 type ArenaSurvivorAlternateVisualTheme = Exclude<ArenaSurvivorVisualTheme, "classic">;
 
 export function isArenaSurvivorVisualTheme(value: unknown): value is ArenaSurvivorVisualTheme {
   return value === "classic"
     || value === "obsidian-relay"
-    || value === "ironbound-dungeon"
     || value === "frostfire-saga";
 }
 
@@ -188,9 +159,6 @@ export function resolveArenaSurvivorCharacterThemeAssetId(
 ): string {
   if (theme === "frostfire-saga") {
     return frostfireCharacterAssets[characterId] ?? "rundling-allround";
-  }
-  if (theme === "ironbound-dungeon") {
-    return ironboundCharacterAssets[characterId] ?? "rundling-allround";
   }
   return characterAssets[characterId] ?? "relay-artificer";
 }
@@ -202,9 +170,6 @@ export function resolveArenaSurvivorEnemyThemeAssetId(
   if (theme === "frostfire-saga") {
     return frostfireEnemyAssets[enemyId] ?? "frost-slime";
   }
-  if (theme === "ironbound-dungeon") {
-    return ironboundEnemyAssets[enemyId] ?? "shade-scorpion";
-  }
   return enemyAssets[enemyId] ?? "nano-swarm";
 }
 
@@ -215,9 +180,6 @@ export function resolveArenaSurvivorWeaponThemeAssetId(
   if (theme === "frostfire-saga") {
     return frostfireWeaponAssets[weaponId] ?? "rust-blade";
   }
-  if (theme === "ironbound-dungeon") {
-    return ironboundWeaponAssets[weaponId] ?? "rust-blade";
-  }
   return weaponAssets[weaponId] ?? "pulse-carbine";
 }
 
@@ -227,9 +189,6 @@ export function resolveArenaSurvivorItemThemeAssetId(
 ): string {
   if (theme === "frostfire-saga") {
     return frostfireItemAssets[itemId] ?? "arcane-crystal";
-  }
-  if (theme === "ironbound-dungeon") {
-    return ironboundItemAssets[itemId] ?? "arcane-crystal";
   }
   return itemAssets[itemId] ?? "arcane-module";
 }
@@ -248,7 +207,7 @@ export function resolveArenaSurvivorCharacterPortraitPath(
   theme: ArenaSurvivorVisualTheme
 ): string {
   if (theme === "classic") {
-    return `/arena-survivor/characters/portraits/${characterId}.svg`;
+    return `/arena-survivor/themes/classic/characters/portraits/${characterId}.svg`;
   }
 
   return resolveArenaSurvivorThemeAssetPath(
@@ -265,8 +224,8 @@ export function resolveArenaSurvivorShopIconPath(
 ): string {
   if (theme === "classic") {
     return kind === "weapon"
-      ? `/arena-survivor/weapons/shop/${id}.svg`
-      : `/arena-survivor/item-icons/${id}.svg`;
+      ? `/arena-survivor/themes/classic/weapons/shop/${id}.svg`
+      : `/arena-survivor/themes/classic/items/${id}.svg`;
   }
 
   const assetId = kind === "weapon"
