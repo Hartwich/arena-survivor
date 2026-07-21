@@ -14,14 +14,16 @@ function awardPickupToPlayer(
   const player = players[playerIndex];
 
   if (pickup.kind === "material") {
-    players[playerIndex] = {
-      ...player,
-      materials: player.materials + pickup.value,
-      runStats: {
-        ...player.runStats,
-        materialsCollected: player.runStats.materialsCollected + pickup.value
-      }
-    };
+    players.forEach((teamPlayer, index) => {
+      players[index] = {
+        ...teamPlayer,
+        materials: teamPlayer.materials + pickup.value,
+        runStats: {
+          ...teamPlayer.runStats,
+          materialsCollected: teamPlayer.runStats.materialsCollected + pickup.value
+        }
+      };
+    });
     return;
   }
 
