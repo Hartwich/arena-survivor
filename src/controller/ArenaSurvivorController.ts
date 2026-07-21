@@ -424,8 +424,8 @@ function buildArenaSurvivorJoystickModel(
     helperText:
       state?.result.outcome === "running"
         ? en
-          ? "Your weapon fires automatically. Collect material for your own shop."
-          : "Deine Waffe schiesst automatisch. Sammle Material fuer deinen eigenen Shop."
+          ? "Your weapon fires automatically. Collected material is shared with the whole team."
+          : "Deine Waffe schiesst automatisch. Gesammeltes Material erhaelt das ganze Team."
         : state?.result.title ?? (en ? "Move your character with the virtual stick." : "Bewege den Charakter mit dem virtuellen Stick."),
     disabled: !running,
     accentColor: player?.color ?? context.state.player?.color ?? "#38bdf8",
@@ -455,14 +455,14 @@ export function buildArenaSurvivorControllerModel(
 ): ArenaSurvivorModernShopLayoutModel | VirtualJoystickLayoutModel {
   const gameState = (context.state.game?.state ?? null) as ArenaSurvivorState | null;
   const currentPlayer = resolveCurrentPlayer(context, gameState);
+  const controllerPhase = context.state.game?.phase;
   const shouldShowShop =
     Boolean(currentPlayer) &&
-    gameState?.result.outcome === "survived" &&
     (Boolean(currentPlayer?.shop.available) ||
-      context.state.game?.phase === "result" ||
-      context.state.game?.phase === "scoreboard" ||
-      context.state.game?.phase === "finished" ||
-      context.state.game?.phase === "locked");
+      controllerPhase === "result" ||
+      controllerPhase === "scoreboard" ||
+      controllerPhase === "finished" ||
+      controllerPhase === "locked");
 
   if (gameState && currentPlayer && shouldShowShop) {
     return buildArenaSurvivorShopModel(context, gameState, currentPlayer);
