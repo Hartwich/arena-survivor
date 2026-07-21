@@ -12,12 +12,11 @@ Beta. The survival loop, character choice, and lobby setup are already good to p
 
 The host can select the complete art set during run setup:
 
-- **Obsidian Relay** is the default detailed sci-fi set with its own arena map and a complete one-to-one catalog: 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
-- **Ironbound Dungeon** is a high-resolution fantasy set assembled from CC0 dungeon and vector-armory artwork. It also covers 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
-- **Frostfire Saga** is an original hand-painted Nordic storybook set generated specifically for Arena Survivor. It covers the same complete catalog and includes its own illustrated arena, HUD palette, waffenlose gameplay sprites, themed pickups, level-up icons, and procedural Nordic background music. Its armed character illustrations remain the lobby-selection portraits.
+- **Frostfire Saga** is the default original hand-painted Nordic storybook set generated specifically for Arena Survivor. It covers the complete catalog and includes its own illustrated arena, HUD palette, waffenlose gameplay sprites, themed pickups, level-up icons, and procedural Nordic background music. Its armed character illustrations remain the lobby-selection portraits.
+- **Obsidian Relay** is a detailed sci-fi set with its own arena map and a complete one-to-one catalog: 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
 - **Classic Arena** keeps the original warm organic presentation.
 
-The selected theme is synchronized to the phone lobby so character portraits update before the run starts. The selection is otherwise presentational and does not change gameplay balance.
+Every art set is stored below `public/<surface>/arena-survivor/themes/<theme-id>`. The selected theme is synchronized to the phone lobby and the dedicated host setup lobby, so character portraits update before the run starts. The selection is otherwise presentational and does not change gameplay balance.
 
 ## Run Through Open Party Lab
 
@@ -89,4 +88,4 @@ Active enemies never exceed the hard cap. Due spawn indicators remain queued unt
 
 Code is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
-The Ironbound Dungeon sources and their CC0 licenses are documented in [docs/third-party-assets.md](docs/third-party-assets.md). The Imagegen workflow and prompt set for Frostfire Saga are documented in [docs/generated-assets.md](docs/generated-assets.md). Other assets, generated media, word lists, prompts, and third-party references may need separate rights review before public store distribution.
+The Imagegen workflow and prompt set for Frostfire Saga are documented in [docs/generated-assets.md](docs/generated-assets.md). Other assets, generated media, word lists, prompts, and third-party references may need separate rights review before public store distribution.

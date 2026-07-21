@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import type { ArenaSurvivorVisualTheme } from "../protocol.js";
 import {
+  arenaSurvivorDefaultVisualTheme,
   resolveArenaSurvivorCharacterThemeAssetId,
   resolveArenaSurvivorEnemyThemeAssetId,
   resolveArenaSurvivorThemeAssetPath,
@@ -66,7 +67,6 @@ const weaponIds = [
 const arenaSurvivorBackgroundKeys: Record<ArenaSurvivorVisualTheme, string> = {
   classic: "arena-survivor-background",
   "obsidian-relay": "arena-survivor-background-obsidian-relay",
-  "ironbound-dungeon": "arena-survivor-background-ironbound-dungeon",
   "frostfire-saga": "arena-survivor-background-frostfire-saga"
 };
 
@@ -81,17 +81,17 @@ export interface ArenaSurvivorAssetDescriptor {
 export const arenaSurvivorCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => ({
   id: entry.id,
   spriteKey: `arena-survivor-character-${entry.id}`,
-  spritePath: `/arena-survivor/characters/sprites/${entry.assetId}.svg`,
+  spritePath: `/arena-survivor/themes/classic/characters/sprites/${entry.assetId}.svg`,
   portraitKey: `arena-survivor-character-portrait-${entry.id}`,
-  portraitPath: `/arena-survivor/characters/portraits/${entry.assetId}.svg`
+  portraitPath: `/arena-survivor/themes/classic/characters/portraits/${entry.assetId}.svg`
 }));
 
 export const arenaSurvivorEnemyAssets: readonly ArenaSurvivorAssetDescriptor[] = enemyAssetIds.map((entry) => ({
   id: entry.id,
   spriteKey: `arena-survivor-enemy-${entry.id}`,
-  spritePath: `/arena-survivor/enemies/sprites/${entry.assetId}.svg`,
+  spritePath: `/arena-survivor/themes/classic/enemies/sprites/${entry.assetId}.svg`,
   portraitKey: `arena-survivor-enemy-portrait-${entry.id}`,
-  portraitPath: `/arena-survivor/enemies/portraits/${entry.assetId}.svg`
+  portraitPath: `/arena-survivor/themes/classic/enemies/portraits/${entry.assetId}.svg`
 }));
 
 export const arenaSurvivorWeaponCarryAssets: ReadonlyArray<{
@@ -101,7 +101,7 @@ export const arenaSurvivorWeaponCarryAssets: ReadonlyArray<{
 }> = weaponIds.map((id) => ({
   id,
   spriteKey: `arena-survivor-weapon-carry-${id}`,
-  spritePath: `/arena-survivor/weapons/carry/${id}_carry.svg`
+  spritePath: `/arena-survivor/themes/classic/weapons/carry/${id}_carry.svg`
 }));
 
 const obsidianCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => {
@@ -130,40 +130,6 @@ const obsidianWeaponCarryAssets = weaponIds.map((id) => ({
   id,
   spriteKey: `arena-survivor-obsidian-weapon-${id}`,
   spritePath: `/arena-survivor/themes/obsidian-relay/weapons/${resolveArenaSurvivorWeaponThemeAssetId(id)}.svg`
-}));
-
-const ironboundCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => {
-  const assetId = resolveArenaSurvivorCharacterThemeAssetId(entry.id, "ironbound-dungeon");
-  const assetPath = resolveArenaSurvivorThemeAssetPath("ironbound-dungeon", "characters", assetId);
-  return {
-    id: entry.id,
-    spriteKey: `arena-survivor-ironbound-character-${entry.id}`,
-    spritePath: assetPath,
-    portraitKey: `arena-survivor-ironbound-character-portrait-${entry.id}`,
-    portraitPath: assetPath
-  };
-});
-
-const ironboundEnemyAssets: readonly ArenaSurvivorAssetDescriptor[] = enemyAssetIds.map((entry) => {
-  const assetId = resolveArenaSurvivorEnemyThemeAssetId(entry.id, "ironbound-dungeon");
-  const assetPath = resolveArenaSurvivorThemeAssetPath("ironbound-dungeon", "enemies", assetId);
-  return {
-    id: entry.id,
-    spriteKey: `arena-survivor-ironbound-enemy-${entry.id}`,
-    spritePath: assetPath,
-    portraitKey: `arena-survivor-ironbound-enemy-portrait-${entry.id}`,
-    portraitPath: assetPath
-  };
-});
-
-const ironboundWeaponCarryAssets = weaponIds.map((id) => ({
-  id,
-  spriteKey: `arena-survivor-ironbound-weapon-${id}`,
-  spritePath: resolveArenaSurvivorThemeAssetPath(
-    "ironbound-dungeon",
-    "weapons",
-    resolveArenaSurvivorWeaponThemeAssetId(id, "ironbound-dungeon")
-  )
 }));
 
 const frostfireCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => {
@@ -232,8 +198,6 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
     ...arenaSurvivorEnemyAssets,
     ...obsidianCharacterAssets,
     ...obsidianEnemyAssets,
-    ...ironboundCharacterAssets,
-    ...ironboundEnemyAssets,
     ...frostfireCharacterAssets,
     ...frostfireEnemyAssets
   ]) {
@@ -244,7 +208,6 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
   for (const asset of [
     ...arenaSurvivorWeaponCarryAssets,
     ...obsidianWeaponCarryAssets,
-    ...ironboundWeaponCarryAssets,
     ...frostfireWeaponCarryAssets
   ]) {
     loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
@@ -255,20 +218,16 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
   }
 
   if (!scene.textures.exists(arenaSurvivorBackgroundKeys.classic)) {
-    scene.load.svg(arenaSurvivorBackgroundKeys.classic, "/arena-survivor/backgrounds/arena-field.svg");
+    scene.load.svg(
+      arenaSurvivorBackgroundKeys.classic,
+      "/arena-survivor/themes/classic/backgrounds/arena-field.svg"
+    );
   }
 
   if (!scene.textures.exists(arenaSurvivorBackgroundKeys["obsidian-relay"])) {
     scene.load.svg(
       arenaSurvivorBackgroundKeys["obsidian-relay"],
       "/arena-survivor/themes/obsidian-relay/backgrounds/relay-vault.svg"
-    );
-  }
-
-  if (!scene.textures.exists(arenaSurvivorBackgroundKeys["ironbound-dungeon"])) {
-    scene.load.image(
-      arenaSurvivorBackgroundKeys["ironbound-dungeon"],
-      "/arena-survivor/themes/ironbound-dungeon/backgrounds/crypt-floor.png"
     );
   }
 
@@ -284,9 +243,6 @@ function resolveCharacterAssetsForTheme(theme: ArenaSurvivorVisualTheme): readon
   if (theme === "obsidian-relay") {
     return obsidianCharacterAssets;
   }
-  if (theme === "ironbound-dungeon") {
-    return ironboundCharacterAssets;
-  }
   if (theme === "frostfire-saga") {
     return frostfireCharacterAssets;
   }
@@ -297,9 +253,6 @@ function resolveEnemyAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly A
   if (theme === "obsidian-relay") {
     return obsidianEnemyAssets;
   }
-  if (theme === "ironbound-dungeon") {
-    return ironboundEnemyAssets;
-  }
   if (theme === "frostfire-saga") {
     return frostfireEnemyAssets;
   }
@@ -308,7 +261,7 @@ function resolveEnemyAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly A
 
 export function resolveArenaSurvivorPlayerSpriteKey(
   characterId: string,
-  theme: ArenaSurvivorVisualTheme = "classic"
+  theme: ArenaSurvivorVisualTheme = arenaSurvivorDefaultVisualTheme
 ): string {
   const assets = resolveCharacterAssetsForTheme(theme);
   const asset = assets.find((entry) => entry.id === characterId);
@@ -317,7 +270,7 @@ export function resolveArenaSurvivorPlayerSpriteKey(
 
 export function resolveArenaSurvivorPlayerPortraitKey(
   characterId: string,
-  theme: ArenaSurvivorVisualTheme = "classic"
+  theme: ArenaSurvivorVisualTheme = arenaSurvivorDefaultVisualTheme
 ): string {
   const assets = resolveCharacterAssetsForTheme(theme);
   const asset = assets.find((entry) => entry.id === characterId);
@@ -326,7 +279,7 @@ export function resolveArenaSurvivorPlayerPortraitKey(
 
 export function resolveArenaSurvivorEnemySpriteKey(
   definitionId: string,
-  theme: ArenaSurvivorVisualTheme = "classic"
+  theme: ArenaSurvivorVisualTheme = arenaSurvivorDefaultVisualTheme
 ): string | null {
   const assets = resolveEnemyAssetsForTheme(theme);
   const asset = assets.find((entry) => entry.id === definitionId);
@@ -335,7 +288,7 @@ export function resolveArenaSurvivorEnemySpriteKey(
 
 export function resolveArenaSurvivorEnemyPortraitKey(
   definitionId: string,
-  theme: ArenaSurvivorVisualTheme = "classic"
+  theme: ArenaSurvivorVisualTheme = arenaSurvivorDefaultVisualTheme
 ): string | null {
   const assets = resolveEnemyAssetsForTheme(theme);
   const asset = assets.find((entry) => entry.id === definitionId);
@@ -344,13 +297,11 @@ export function resolveArenaSurvivorEnemyPortraitKey(
 
 export function resolveArenaSurvivorWeaponCarrySpriteKey(
   weaponId: string,
-  theme: ArenaSurvivorVisualTheme = "classic"
+  theme: ArenaSurvivorVisualTheme = arenaSurvivorDefaultVisualTheme
 ): string | null {
   const assets = theme === "obsidian-relay"
     ? obsidianWeaponCarryAssets
-    : theme === "ironbound-dungeon"
-      ? ironboundWeaponCarryAssets
-      : theme === "frostfire-saga"
+    : theme === "frostfire-saga"
         ? frostfireWeaponCarryAssets
         : arenaSurvivorWeaponCarryAssets;
   const asset = assets.find((entry) => entry.id === weaponId);
@@ -368,6 +319,8 @@ export function resolveArenaSurvivorPickupSpriteKey(
   return frostfirePickupAssets.find((asset) => asset.id === kind)?.spriteKey ?? null;
 }
 
-export function resolveArenaSurvivorBackgroundKey(theme: ArenaSurvivorVisualTheme = "classic"): string {
+export function resolveArenaSurvivorBackgroundKey(
+  theme: ArenaSurvivorVisualTheme = arenaSurvivorDefaultVisualTheme
+): string {
   return arenaSurvivorBackgroundKeys[theme];
 }
