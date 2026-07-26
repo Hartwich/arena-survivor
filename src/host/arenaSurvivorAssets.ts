@@ -67,7 +67,8 @@ const weaponIds = [
 const arenaSurvivorBackgroundKeys: Record<ArenaSurvivorVisualTheme, string> = {
   classic: "arena-survivor-background",
   "obsidian-relay": "arena-survivor-background-obsidian-relay",
-  "frostfire-saga": "arena-survivor-background-frostfire-saga"
+  "frostfire-saga": "arena-survivor-background-frostfire-saga",
+  "marshmallow-mayhem": "arena-survivor-background-marshmallow-mayhem"
 };
 
 export interface ArenaSurvivorAssetDescriptor {
@@ -166,6 +167,36 @@ const frostfireWeaponCarryAssets = weaponIds.map((id) => ({
   )
 }));
 
+const marshmallowCharacterAssets: readonly ArenaSurvivorAssetDescriptor[] = characterAssetIds.map((entry) => ({
+  id: entry.id,
+  spriteKey: `arena-survivor-marshmallow-torso-${entry.id}`,
+  spritePath: `/arena-survivor/themes/marshmallow-mayhem/characters/torsos/${entry.id}.png`,
+  portraitKey: `arena-survivor-marshmallow-character-portrait-${entry.id}`,
+  portraitPath: `/arena-survivor/themes/marshmallow-mayhem/characters/portraits/${entry.id}.png`
+}));
+
+const marshmallowEnemyAssets: readonly ArenaSurvivorAssetDescriptor[] = enemyAssetIds.map((entry) => {
+  const assetId = resolveArenaSurvivorEnemyThemeAssetId(entry.id, "marshmallow-mayhem");
+  const assetPath = resolveArenaSurvivorThemeAssetPath("marshmallow-mayhem", "enemies", assetId);
+  return {
+    id: entry.id,
+    spriteKey: `arena-survivor-marshmallow-enemy-${entry.id}`,
+    spritePath: assetPath,
+    portraitKey: `arena-survivor-marshmallow-enemy-portrait-${entry.id}`,
+    portraitPath: assetPath
+  };
+});
+
+const marshmallowWeaponCarryAssets = weaponIds.map((id) => ({
+  id,
+  spriteKey: `arena-survivor-marshmallow-weapon-${id}`,
+  spritePath: resolveArenaSurvivorThemeAssetPath(
+    "marshmallow-mayhem",
+    "weapons",
+    resolveArenaSurvivorWeaponThemeAssetId(id, "marshmallow-mayhem")
+  )
+}));
+
 const frostfirePickupAssets = [
   {
     id: "health",
@@ -178,6 +209,27 @@ const frostfirePickupAssets = [
     spritePath: "/arena-survivor/themes/frostfire-saga/pickups/material.png"
   }
 ] as const;
+
+const marshmallowPickupAssets = [
+  {
+    id: "health",
+    spriteKey: "arena-survivor-marshmallow-pickup-health",
+    spritePath: "/arena-survivor/themes/marshmallow-mayhem/pickups/health.png"
+  },
+  {
+    id: "material",
+    spriteKey: "arena-survivor-marshmallow-pickup-material",
+    spritePath: "/arena-survivor/themes/marshmallow-mayhem/pickups/material.png"
+  }
+] as const;
+
+export const arenaSurvivorMarshmallowRigKeys = {
+  hand: "arena-survivor-marshmallow-rig-hand",
+  foot: "arena-survivor-marshmallow-rig-foot",
+  helmet: "arena-survivor-marshmallow-rig-helmet"
+} as const;
+
+const marshmallowHeadbandVariants = ["red", "blue", "green", "gold", "violet", "teal"] as const;
 
 function loadArenaSurvivorImage(scene: Phaser.Scene, key: string, path: string): void {
   if (scene.textures.exists(key)) {
@@ -199,7 +251,9 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
     ...obsidianCharacterAssets,
     ...obsidianEnemyAssets,
     ...frostfireCharacterAssets,
-    ...frostfireEnemyAssets
+    ...frostfireEnemyAssets,
+    ...marshmallowCharacterAssets,
+    ...marshmallowEnemyAssets
   ]) {
     loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
     loadArenaSurvivorImage(scene, asset.portraitKey, asset.portraitPath);
@@ -208,13 +262,37 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
   for (const asset of [
     ...arenaSurvivorWeaponCarryAssets,
     ...obsidianWeaponCarryAssets,
-    ...frostfireWeaponCarryAssets
+    ...frostfireWeaponCarryAssets,
+    ...marshmallowWeaponCarryAssets
   ]) {
     loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
   }
 
-  for (const asset of frostfirePickupAssets) {
+  for (const asset of [...frostfirePickupAssets, ...marshmallowPickupAssets]) {
     loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
+  }
+
+  loadArenaSurvivorImage(
+    scene,
+    arenaSurvivorMarshmallowRigKeys.hand,
+    "/arena-survivor/themes/marshmallow-mayhem/rig/hand-knob.png"
+  );
+  loadArenaSurvivorImage(
+    scene,
+    arenaSurvivorMarshmallowRigKeys.foot,
+    "/arena-survivor/themes/marshmallow-mayhem/rig/foot-knob.png"
+  );
+  loadArenaSurvivorImage(
+    scene,
+    arenaSurvivorMarshmallowRigKeys.helmet,
+    "/arena-survivor/themes/marshmallow-mayhem/rig/helmet.png"
+  );
+  for (const color of marshmallowHeadbandVariants) {
+    loadArenaSurvivorImage(
+      scene,
+      `arena-survivor-marshmallow-rig-headband-${color}`,
+      `/arena-survivor/themes/marshmallow-mayhem/rig/headbands/headband-${color}.png`
+    );
   }
 
   if (!scene.textures.exists(arenaSurvivorBackgroundKeys.classic)) {
@@ -237,6 +315,13 @@ export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
       "/arena-survivor/themes/frostfire-saga/backgrounds/frostfire-arena.png"
     );
   }
+
+  if (!scene.textures.exists(arenaSurvivorBackgroundKeys["marshmallow-mayhem"])) {
+    scene.load.image(
+      arenaSurvivorBackgroundKeys["marshmallow-mayhem"],
+      "/arena-survivor/themes/marshmallow-mayhem/backgrounds/cocoa-clearing.png"
+    );
+  }
 }
 
 function resolveCharacterAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly ArenaSurvivorAssetDescriptor[] {
@@ -245,6 +330,9 @@ function resolveCharacterAssetsForTheme(theme: ArenaSurvivorVisualTheme): readon
   }
   if (theme === "frostfire-saga") {
     return frostfireCharacterAssets;
+  }
+  if (theme === "marshmallow-mayhem") {
+    return marshmallowCharacterAssets;
   }
   return arenaSurvivorCharacterAssets;
 }
@@ -255,6 +343,9 @@ function resolveEnemyAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly A
   }
   if (theme === "frostfire-saga") {
     return frostfireEnemyAssets;
+  }
+  if (theme === "marshmallow-mayhem") {
+    return marshmallowEnemyAssets;
   }
   return arenaSurvivorEnemyAssets;
 }
@@ -303,6 +394,8 @@ export function resolveArenaSurvivorWeaponCarrySpriteKey(
     ? obsidianWeaponCarryAssets
     : theme === "frostfire-saga"
         ? frostfireWeaponCarryAssets
+        : theme === "marshmallow-mayhem"
+          ? marshmallowWeaponCarryAssets
         : arenaSurvivorWeaponCarryAssets;
   const asset = assets.find((entry) => entry.id === weaponId);
   return asset?.spriteKey ?? null;
@@ -312,11 +405,29 @@ export function resolveArenaSurvivorPickupSpriteKey(
   kind: "health" | "material",
   theme: ArenaSurvivorVisualTheme
 ): string | null {
-  if (theme !== "frostfire-saga") {
-    return null;
+  if (theme === "frostfire-saga") {
+    return frostfirePickupAssets.find((asset) => asset.id === kind)?.spriteKey ?? null;
   }
+  if (theme === "marshmallow-mayhem") {
+    return marshmallowPickupAssets.find((asset) => asset.id === kind)?.spriteKey ?? null;
+  }
+  return null;
+}
 
-  return frostfirePickupAssets.find((asset) => asset.id === kind)?.spriteKey ?? null;
+export function resolveArenaSurvivorMarshmallowHeadbandKey(playerColor: string): string {
+  const normalized = playerColor.toLowerCase();
+  const variant = normalized === "#ef4444" || normalized === "#f97316" || normalized === "#ec4899"
+    ? "red"
+    : normalized === "#f59e0b"
+      ? "gold"
+      : normalized === "#10b981"
+        ? "green"
+        : normalized === "#8b5cf6"
+          ? "violet"
+          : normalized === "#14b8a6"
+            ? "teal"
+            : "blue";
+  return `arena-survivor-marshmallow-rig-headband-${variant}`;
 }
 
 export function resolveArenaSurvivorBackgroundKey(

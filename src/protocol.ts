@@ -68,7 +68,8 @@ export type ArenaSurvivorInput =
 export type ArenaSurvivorVisualTheme =
   | "classic"
   | "obsidian-relay"
-  | "frostfire-saga";
+  | "frostfire-saga"
+  | "marshmallow-mayhem";
 
 export const arenaSurvivorSetupConfig = {
   visualTheme: {
