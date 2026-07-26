@@ -193,9 +193,14 @@ export interface ArenaSurvivorConfirmLobbyHostAction {
   type: "confirm-lobby";
 }
 
+export interface ArenaSurvivorRestartRunHostAction {
+  type: "restart-run";
+}
+
 export type ArenaSurvivorHostAction =
   | ArenaSurvivorConfigureLobbyHostAction
-  | ArenaSurvivorConfirmLobbyHostAction;
+  | ArenaSurvivorConfirmLobbyHostAction
+  | ArenaSurvivorRestartRunHostAction;
 
 export interface ArenaSurvivorLobbyState {
   difficulty: number;
