@@ -44,6 +44,9 @@ function resolvePlayerDisplayRadius(radius: number): number {
   return radius * arenaSurvivorVisualConfig.player.diameterScale;
 }
 
+const MARSHMALLOW_PLAYER_SCALE = 0.86;
+const MARSHMALLOW_WEAPON_SCALE = 1.22;
+
 const enemyVisualScaleByDefinition: Readonly<Record<string, number>> = {
   "slime-blob": 0.9,
   "needle-runner": 0.9,
@@ -675,7 +678,11 @@ function updateMarshmallowPlayerRig(
   torsoKey: string,
   playerPosition: { x: number; y: number; pulseScale: number }
 ): void {
-  const displaySize = resolvePlayerDisplayRadius(player.radius) * 2 * playerPosition.pulseScale;
+  const displaySize =
+    resolvePlayerDisplayRadius(player.radius) *
+    2 *
+    playerPosition.pulseScale *
+    MARSHMALLOW_PLAYER_SCALE;
   const rigScale = displaySize / 380;
   const speed = Math.hypot(player.vx, player.vy);
   const speedRatio = Phaser.Math.Clamp(speed / Math.max(1, player.moveSpeed), 0, 1);
@@ -795,7 +802,9 @@ export function drawArenaSurvivorPlayerHealthBars(
 
     const playerPosition = resolvePlayerVisualPosition(player, state.elapsedMs);
     const displayRadius =
-      resolvePlayerDisplayRadius(Math.max(10, player.radius)) * playerPosition.pulseScale;
+      resolvePlayerDisplayRadius(Math.max(10, player.radius)) *
+      playerPosition.pulseScale *
+      (state.visualTheme === "marshmallow-mayhem" ? MARSHMALLOW_PLAYER_SCALE : 1);
     const hpRatio = player.maxHp > 0
       ? Phaser.Math.Clamp(player.hp / player.maxHp, 0, 1)
       : 0;
@@ -1143,7 +1152,9 @@ export function syncArenaSurvivorSpriteLayer(
         continue;
       }
 
-      const displaySize = resolveWeaponDisplaySize(player, slotIndex);
+      const displaySize =
+        resolveWeaponDisplaySize(player, slotIndex) *
+        (state.visualTheme === "marshmallow-mayhem" ? MARSHMALLOW_WEAPON_SCALE : 1);
       const weaponPose = resolveWeaponPose(
         player,
         state,

@@ -13,7 +13,7 @@ from pathlib import Path
 from shutil import copy2
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +23,7 @@ THEME_ROOTS = [
     ROOT / "public" / "controller" / "arena-survivor" / "themes" / "marshmallow-mayhem",
 ]
 EDGE_ALPHA = 18
+EDGE_FEATHER_RADIUS = 0.45
 
 CHARACTERS = [
     "schrotto-scharfschuss",
@@ -134,7 +135,7 @@ def remove_chroma_key(image: Image.Image) -> Image.Image:
     rgba_image = image.convert("RGBA")
     source_alpha = np.asarray(rgba_image.getchannel("A"))
     if np.any(source_alpha == 0):
-        return rgba_image
+        return polish_alpha_edges(rgba_image, feather=False)
     pixels = np.asarray(rgba_image).copy()
     rgb = pixels[:, :, :3].astype(np.float32)
     border = np.concatenate(
@@ -176,6 +177,55 @@ def remove_chroma_key(image: Image.Image) -> Image.Image:
         known[newly_known] = True
     pixels[:, :, :3][edge & known] = filled[edge & known].astype(np.uint8)
     pixels[:, :, :3][edge & ~known] = 0
+    pixels[pixels[:, :, 3] == 0, :3] = 0
+    return polish_alpha_edges(Image.fromarray(pixels, "RGBA"), feather=False)
+
+
+def polish_alpha_edges(image: Image.Image, *, feather: bool = True) -> Image.Image:
+    """Replace chroma-contaminated matte colors and gently smooth the final edge.
+
+    Generated alpha atlases can still retain the key color in semi-transparent
+    pixels. Those colors become visible again when Canvas scales or rotates a
+    sprite. We extend nearby opaque foreground colors into the matte before
+    applying a sub-pixel alpha feather, without changing opaque artwork.
+    """
+    pixels = np.asarray(image.convert("RGBA")).copy()
+    alpha = pixels[:, :, 3]
+    rgb = pixels[:, :, :3].astype(np.float32)
+    known = alpha >= 245
+    filled = rgb.copy()
+    height, width = alpha.shape
+
+    for _ in range(3):
+        accumulator = np.zeros_like(filled)
+        neighbor_count = np.zeros((height, width), dtype=np.float32)
+        for offset_y, offset_x in (
+            (-1, -1), (-1, 0), (-1, 1),
+            (0, -1), (0, 1),
+            (1, -1), (1, 0), (1, 1),
+        ):
+            source_y = slice(max(0, -offset_y), min(height, height - offset_y))
+            source_x = slice(max(0, -offset_x), min(width, width - offset_x))
+            target_y = slice(max(0, offset_y), min(height, height + offset_y))
+            target_x = slice(max(0, offset_x), min(width, width + offset_x))
+            source_known = known[source_y, source_x]
+            accumulator[target_y, target_x] += filled[source_y, source_x] * source_known[:, :, None]
+            neighbor_count[target_y, target_x] += source_known
+        newly_known = ~known & (neighbor_count > 0)
+        if not np.any(newly_known):
+            break
+        filled[newly_known] = accumulator[newly_known] / neighbor_count[newly_known][:, None]
+        known[newly_known] = True
+
+    matte = (alpha >= 12) & (alpha < 245)
+    pixels[:, :, :3][matte & known] = np.clip(filled[matte & known], 0, 255).astype(np.uint8)
+    if feather:
+        softened = Image.fromarray(alpha, "L").filter(ImageFilter.GaussianBlur(EDGE_FEATHER_RADIUS))
+        softened_alpha = np.asarray(softened).astype(np.float32)
+        # Drop barely visible key remnants, then expand the useful matte back
+        # to the full range. This removes the broad dark/chroma halo while
+        # retaining a narrow anti-aliased contour.
+        pixels[:, :, 3] = np.clip((softened_alpha - 12) * 255 / 243, 0, 255).astype(np.uint8)
     pixels[pixels[:, :, 3] == 0, :3] = 0
     return Image.fromarray(pixels, "RGBA")
 
@@ -336,7 +386,7 @@ def normalized_canvas(image: Image.Image, size: int, margin: int = 18) -> Image.
     )
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     canvas.alpha_composite(image, ((size - image.width) // 2, (size - image.height) // 2))
-    return canvas
+    return polish_alpha_edges(canvas)
 
 
 def save_to_theme_roots(image: Image.Image, relative_path: Path) -> None:
@@ -382,7 +432,7 @@ def build_portrait(torso: Image.Image, character_index: int) -> Image.Image:
     canvas.alpha_composite(hand, (512 - 48 - hand.width, 322))
     canvas.alpha_composite(foot, (132, 424))
     canvas.alpha_composite(foot, (512 - 132 - foot.width, 424))
-    return canvas
+    return polish_alpha_edges(canvas)
 
 
 def export_atlas(spec: AtlasSpec) -> None:
@@ -391,6 +441,7 @@ def export_atlas(spec: AtlasSpec) -> None:
     for index, (name, asset) in enumerate(zip(spec.names, cells)):
         if spec.rotations:
             asset = asset.rotate(spec.rotations[index], expand=True, resample=Image.Resampling.BICUBIC)
+            asset = polish_alpha_edges(asset, feather=False)
             visible_box = asset.getchannel("A").getbbox()
             if visible_box:
                 asset = asset.crop(visible_box)
@@ -408,11 +459,13 @@ def copy_shared_assets() -> None:
         rig = root / "rig"
         rig.mkdir(parents=True, exist_ok=True)
         for name in ("hand-knob.png", "foot-knob.png", "helmet.png"):
-            copy2(SOURCE / "motion-kit" / name, rig / name)
+            polished = polish_alpha_edges(Image.open(SOURCE / "motion-kit" / name))
+            polished.save(rig / name, optimize=True)
         headbands = rig / "headbands"
         headbands.mkdir(parents=True, exist_ok=True)
         for source in (SOURCE / "motion-kit" / "headbands").glob("headband-*.png"):
-            copy2(source, headbands / source.name)
+            polished = polish_alpha_edges(Image.open(source))
+            polished.save(headbands / source.name, optimize=True)
 
 
 def main() -> None:
