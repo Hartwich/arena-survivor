@@ -2,7 +2,9 @@
 
 Co-op arena survival game for Open Party Lab with character choices, waves, and difficulty setup.
 
-![In-game screenshot](docs/screenshots/host.png)
+| Frostfire Saga | Obsidian Relay | Classic Arena |
+| --- | --- | --- |
+| ![Arena Survivor Frostfire Saga](docs/screenshots/frostfire-saga.jpg) | ![Arena Survivor Obsidian Relay](docs/screenshots/obsidian-relay.jpg) | ![Arena Survivor Classic Arena](docs/screenshots/classic.jpg) |
 
 ## Status
 

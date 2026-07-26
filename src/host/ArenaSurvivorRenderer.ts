@@ -611,6 +611,14 @@ function createMarshmallowPlayerRig(
   torsoKey: string,
   headgearKey: string
 ): ArenaSurvivorMarshmallowPlayerRig {
+  for (const textureKey of [
+    torsoKey,
+    headgearKey,
+    arenaSurvivorMarshmallowRigKeys.hand,
+    arenaSurvivorMarshmallowRigKeys.foot
+  ]) {
+    scene.textures.get(textureKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+  }
   const leftFoot = scene.add.image(0, 0, arenaSurvivorMarshmallowRigKeys.foot).setOrigin(0.5);
   const rightFoot = scene.add.image(0, 0, arenaSurvivorMarshmallowRigKeys.foot).setOrigin(0.5);
   const torso = scene.add.image(0, 0, torsoKey).setOrigin(0.5);

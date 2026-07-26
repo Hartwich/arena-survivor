@@ -4,7 +4,8 @@ import {
   transitionRoundState,
   type GamePlayerSummary,
   type ScoreEntry,
-  type ServerGame
+  type ServerGame,
+  type ServerGameContext
 } from "@open-party-lab/game-core";
 import type {
   ArenaSurvivorHostAction,
@@ -262,6 +263,68 @@ function rebuildPlayersForNextWave(
   });
 }
 
+function createRestartedRunState(
+  state: ArenaSurvivorRuntimeState,
+  context: Pick<ServerGameContext, "players" | "now">
+): ArenaSurvivorRuntimeState {
+  const gamePlayers = getPlayers(context).slice(0, 4);
+  const spawnPoints = createSpawnPoints(gamePlayers.length);
+  const difficulty = resolveArenaSurvivorDifficulty(1, gamePlayers.length, state.difficultyTier);
+  const players = gamePlayers.map((gamePlayer, index) => {
+    const previousPlayer = state.players.find((player) => player.playerId === gamePlayer.id);
+    const characterId = previousPlayer?.character.id ?? gamePlayer.selectedCharacterId ?? undefined;
+
+    return createArenaSurvivorPlayer(
+      gamePlayer,
+      spawnPoints[index] ?? spawnPoints[0],
+      context.now,
+      undefined,
+      createArenaSurvivorStarterLoadout(characterId),
+      characterId,
+      index
+    );
+  });
+
+  return {
+    ...createBaseRoundState("round_intro", context.now, {
+      durationMs: phaseTimings.roundIntroMs,
+      message: state.language === "en" ? "A new run begins." : "Ein neuer Run beginnt."
+    }),
+    language: state.language,
+    visualTheme: state.visualTheme,
+    seed: ((context.now ^ 0x9e3779b9) >>> 0),
+    arenaWidth: arenaSurvivorConfig.arenaWidth,
+    arenaHeight: arenaSurvivorConfig.arenaHeight,
+    waveNumber: 1,
+    difficultyLevel: difficulty.level,
+    difficultyTier: state.difficultyTier,
+    spawnedBossDefinitionIds: [],
+    elapsedMs: 0,
+    remainingMs: arenaSurvivorConfig.roundDurationMs,
+    nextEnemySpawnAtMs: Math.max(
+      difficulty.enemySpawnIntervalMs,
+      arenaSurvivorConfig.enemySpawnWarningLeadMs
+    ),
+    kills: 0,
+    players,
+    enemies: [],
+    projectiles: [],
+    pickups: [],
+    spawnIndicators: [],
+    result: createDefaultResult(),
+    debugInfo: {
+      enemySpawnCooldownMs: Math.max(
+        difficulty.enemySpawnIntervalMs,
+        arenaSurvivorConfig.enemySpawnWarningLeadMs
+      ),
+      enemyCount: 0,
+      pickupCount: 0,
+      projectileCount: 0,
+      alivePlayerCount: countAlivePlayers(players)
+    }
+  };
+}
+
 export const arenaSurvivorServerGame: ServerGame<
   ArenaSurvivorRuntimeState,
   ArenaSurvivorInput,
@@ -271,7 +334,15 @@ export const arenaSurvivorServerGame: ServerGame<
   handleHostAction(state, action, context) {
     const hostAction = action as Partial<ArenaSurvivorHostAction> | null;
 
-    if (!hostAction?.type || state) {
+    if (!hostAction?.type) {
+      return {};
+    }
+
+    if (state) {
+      if (hostAction.type === "restart-run" && state.result.outcome === "defeated") {
+        return { state: createRestartedRunState(state, context) };
+      }
+
       return {};
     }
 

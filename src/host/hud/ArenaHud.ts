@@ -1,4 +1,8 @@
 import type { ArenaSurvivorPlayerState, ArenaSurvivorState } from "../../protocol.js";
+import {
+  resolveArenaSurvivorCharacterPortraitPath,
+  resolveArenaSurvivorShopIconPath
+} from "../../visualThemes.js";
 
 interface RoomSnapshot {
   language?: "de" | "en";
@@ -61,7 +65,12 @@ export interface ArenaHud {
   destroy(): void;
 }
 
-export function createArenaHud(): ArenaHud {
+export interface ArenaHudActions {
+  onRestartRun(): void;
+  onReturnToSetup(): void;
+}
+
+export function createArenaHud(actions: ArenaHudActions): ArenaHud {
   const overlay = document.createElement("div");
   overlay.style.position = "fixed";
   overlay.style.inset = "0";
@@ -250,10 +259,10 @@ export function createArenaHud(): ArenaHud {
   summaryCard.style.left = "50%";
   summaryCard.style.top = "50%";
   summaryCard.style.transform = "translate(-50%, -50%)";
-  summaryCard.style.width = "min(860px, calc(100vw - 56px))";
-  summaryCard.style.maxHeight = "min(72vh, 680px)";
+  summaryCard.style.width = "min(1080px, calc(100vw - 44px))";
+  summaryCard.style.maxHeight = "min(86vh, 760px)";
   summaryCard.style.overflow = "auto";
-  summaryCard.style.padding = "24px 26px";
+  summaryCard.style.padding = "24px clamp(18px, 3vw, 34px)";
   summaryCard.style.display = "none";
   summaryCard.style.gridTemplateColumns = "1fr";
   summaryCard.style.gap = "16px";
@@ -261,8 +270,15 @@ export function createArenaHud(): ArenaHud {
   summaryCard.style.background = "rgba(2, 6, 23, 0.9)";
   summaryCard.style.zIndex = "48";
 
+  const summaryEyebrow = document.createElement("div");
+  summaryEyebrow.style.fontSize = "12px";
+  summaryEyebrow.style.fontWeight = "900";
+  summaryEyebrow.style.letterSpacing = "0.18em";
+  summaryEyebrow.style.textTransform = "uppercase";
+  summaryEyebrow.style.textAlign = "center";
+
   const summaryTitle = document.createElement("div");
-  summaryTitle.style.fontSize = "24px";
+  summaryTitle.style.fontSize = "clamp(24px, 3vw, 38px)";
   summaryTitle.style.fontWeight = "900";
   summaryTitle.style.textAlign = "center";
 
@@ -270,12 +286,70 @@ export function createArenaHud(): ArenaHud {
   summaryBody.style.display = "grid";
   summaryBody.style.gap = "12px";
 
+  const summaryActions = document.createElement("div");
+  summaryActions.style.display = "none";
+  summaryActions.style.gridTemplateColumns = "repeat(2, minmax(180px, 260px))";
+  summaryActions.style.justifyContent = "center";
+  summaryActions.style.gap = "12px";
+  summaryActions.style.pointerEvents = "auto";
+
+  function createSummaryButton(primary: boolean): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.style.minHeight = "48px";
+    button.style.padding = "10px 18px";
+    button.style.borderRadius = "14px";
+    button.style.border = primary
+      ? "1px solid rgba(255,255,255,0.26)"
+      : "1px solid rgba(148,163,184,0.34)";
+    button.style.background = primary ? "#ea580c" : "rgba(15, 23, 42, 0.78)";
+    button.style.color = "#fff7ed";
+    button.style.font = `900 15px ${hostTheme.bodyFont}`;
+    button.style.cursor = "pointer";
+    button.style.boxShadow = primary ? "0 10px 28px rgba(234, 88, 12, 0.28)" : "none";
+    button.style.transition = "transform 140ms ease, filter 140ms ease";
+    button.addEventListener("pointerenter", () => {
+      if (!button.disabled) {
+        button.style.transform = "translateY(-2px)";
+        button.style.filter = "brightness(1.08)";
+      }
+    });
+    button.addEventListener("pointerleave", () => {
+      button.style.transform = "translateY(0)";
+      button.style.filter = "none";
+    });
+    return button;
+  }
+
+  const restartButton = createSummaryButton(true);
+  const setupButton = createSummaryButton(false);
+  let actionPending = false;
+  restartButton.addEventListener("click", () => {
+    if (actionPending) return;
+    actionPending = true;
+    restartButton.disabled = true;
+    setupButton.disabled = true;
+    actions.onRestartRun();
+  });
+  setupButton.addEventListener("click", () => {
+    if (actionPending) return;
+    actionPending = true;
+    restartButton.disabled = true;
+    setupButton.disabled = true;
+    actions.onReturnToSetup();
+  });
+  summaryActions.appendChild(restartButton);
+  summaryActions.appendChild(setupButton);
+
+  summaryCard.appendChild(summaryEyebrow);
   summaryCard.appendChild(summaryTitle);
   summaryCard.appendChild(summaryBody);
+  summaryCard.appendChild(summaryActions);
 
   overlay.appendChild(metaBar);
   overlay.appendChild(summaryCard);
   document.body.appendChild(overlay);
+  let lastSummarySignature = "";
 
   function update(state: ArenaSurvivorState | null, room: RoomSnapshot | null = null): void {
     const en = room?.language === "en";
@@ -360,70 +434,200 @@ export function createArenaHud(): ArenaHud {
 
     const showSummary = Boolean(state && state.result.outcome !== "running");
     summaryCard.style.display = showSummary ? "grid" : "none";
+    metaBar.style.opacity = showSummary ? "0.32" : "1";
+    for (const card of playerCards) {
+      card.card.style.display = showSummary ? "none" : "grid";
+    }
 
     if (!showSummary || !state) {
+      actionPending = false;
+      restartButton.disabled = false;
+      setupButton.disabled = false;
+      lastSummarySignature = "";
+      summaryEyebrow.textContent = "";
       summaryTitle.textContent = "";
       summaryBody.replaceChildren();
+      summaryActions.style.display = "none";
       return;
     }
 
+    const defeated = state.result.outcome === "defeated";
+    const themeAccent = obsidianRelay
+      ? "#67e8f9"
+      : frostfireSaga
+        ? "#fb923c"
+        : marshmallowMayhem
+          ? "#fbbf24"
+          : "#38bdf8";
+    const playerSurface = obsidianRelay
+      ? "rgba(4, 20, 29, 0.9)"
+      : frostfireSaga
+        ? "rgba(12, 27, 43, 0.9)"
+        : marshmallowMayhem
+          ? "rgba(66, 30, 14, 0.9)"
+          : "rgba(15, 23, 42, 0.88)";
+    summaryEyebrow.textContent = defeated
+      ? en ? "Run statistics" : "Run-Statistik"
+      : en ? "Wave report" : "Wellenbericht";
+    summaryEyebrow.style.color = themeAccent;
     summaryTitle.textContent = state.result.title;
-    summaryBody.replaceChildren(
-      ...state.players.map((player) => {
+    summaryActions.style.display = defeated ? "grid" : "none";
+    restartButton.textContent = en ? "New run" : "Neuer Run";
+    setupButton.textContent = en ? "Back to setup" : "Zurück zum Setup";
+    restartButton.style.background = themeAccent;
+    restartButton.style.color = obsidianRelay ? "#04141d" : "#2b160c";
+
+    const summarySignature = JSON.stringify({
+      outcome: state.result.outcome,
+      theme: state.visualTheme,
+      wave: state.waveNumber,
+      players: state.players.map((player) => [
+        player.playerId,
+        player.level,
+        player.runSummary.totalKills,
+        player.runSummary.totalDamageDealt,
+        player.loadout.weapons.map((weapon) => `${weapon.weaponId}:${weapon.level}`),
+        player.loadout.items.map((item) => `${item.itemId}:${item.level}`)
+      ])
+    });
+    if (summarySignature === lastSummarySignature) {
+      return;
+    }
+    lastSummarySignature = summarySignature;
+
+    const playerSummaries = state.players.map((player, playerIndex) => {
         const card = document.createElement("article");
         card.style.display = "grid";
-        card.style.gap = "6px";
-        card.style.padding = "14px 16px";
-        card.style.borderRadius = "16px";
-        card.style.background = "rgba(15, 23, 42, 0.8)";
+        card.style.gridTemplateColumns = "clamp(92px, 12vw, 138px) minmax(0, 1fr)";
+        card.style.gap = "clamp(12px, 2vw, 22px)";
+        card.style.padding = "14px";
+        card.style.borderRadius = "18px";
+        card.style.background = playerSurface;
         card.style.border = `1px solid ${player.color}`;
 
+        const portrait = document.createElement("img");
+        portrait.src = resolveArenaSurvivorCharacterPortraitPath(player.character.id, state.visualTheme);
+        portrait.alt = player.character.name;
+        portrait.style.width = "100%";
+        portrait.style.aspectRatio = "1";
+        portrait.style.objectFit = "contain";
+        portrait.style.alignSelf = "center";
+        portrait.style.filter = "drop-shadow(0 10px 14px rgba(0,0,0,0.28))";
+
+        const content = document.createElement("div");
+        content.style.display = "grid";
+        content.style.gap = "10px";
+        content.style.minWidth = "0";
+
         const title = document.createElement("div");
-        title.style.fontSize = "16px";
+        title.style.fontSize = "18px";
         title.style.fontWeight = "900";
-        title.textContent = `${player.name}  |  ${player.character.name}  |  LV ${player.level}  |  M ${player.materials}`;
+        title.textContent = `${player.name} · ${player.character.name}`;
 
-        const performanceLine = document.createElement("div");
-        performanceLine.style.fontSize = "14px";
-        performanceLine.style.fontWeight = "900";
-        performanceLine.style.color = "#67e8f9";
-        const survivedSeconds = Math.max(0.001, player.runStats.survivedMs / 1000);
-        const damagePerSecond = player.runStats.damageDealt / survivedSeconds;
-        performanceLine.textContent =
-          `${en ? "Kills" : "Kills"} ${player.runStats.kills}  |  ` +
-          `${en ? "DPS" : "DPS"} ${Math.round(damagePerSecond * 10) / 10}  |  ` +
-          `${en ? "Damage" : "Schaden"} ${Math.round(player.runStats.damageDealt)}`;
+        const survivedSeconds = Math.max(0.001, player.runSummary.totalSurvivedMs / 1000);
+        const damagePerSecond = player.runSummary.totalDamageDealt / survivedSeconds;
+        const accuracy = player.runSummary.totalShotsFired > 0
+          ? player.runSummary.totalHitsLanded / player.runSummary.totalShotsFired
+          : 0;
+        const statGrid = document.createElement("div");
+        statGrid.style.display = "grid";
+        statGrid.style.gridTemplateColumns = "repeat(5, minmax(72px, 1fr))";
+        statGrid.style.gap = "7px";
+        const runStats = [
+          ["DPS", `${Math.round(damagePerSecond * 10) / 10}`],
+          ["Kills", `${player.runSummary.totalKills}`],
+          [en ? "Damage" : "Schaden", `${Math.round(player.runSummary.totalDamageDealt)}`],
+          [en ? "Accuracy" : "Treffer", `${Math.round(accuracy * 100)}%`],
+          [en ? "Level" : "Level", `${player.level}`]
+        ];
+        for (const [label, value] of runStats) {
+          const stat = document.createElement("div");
+          stat.style.padding = "7px 9px";
+          stat.style.borderRadius = "10px";
+          stat.style.background = "rgba(2, 6, 23, 0.38)";
+          const valueElement = document.createElement("strong");
+          valueElement.style.display = "block";
+          valueElement.style.fontSize = "16px";
+          valueElement.style.color = themeAccent;
+          valueElement.textContent = value;
+          const labelElement = document.createElement("span");
+          labelElement.style.fontSize = "10px";
+          labelElement.style.color = "#cbd5e1";
+          labelElement.textContent = label;
+          stat.appendChild(valueElement);
+          stat.appendChild(labelElement);
+          statGrid.appendChild(stat);
+        }
 
-        const weaponLine = document.createElement("div");
-        weaponLine.style.fontSize = "13px";
-        weaponLine.style.color = "#cbd5e1";
-        weaponLine.textContent =
-          player.loadout.weapons.length > 0
-            ? player.loadout.weapons
-              .map((weapon, index) => `W${index + 1}: ${weapon.displayName} Lv.${weapon.level}`)
-              .join("  |  ")
-            : en ? "No weapons" : "Keine Waffen";
+        const assetRow = document.createElement("div");
+        assetRow.style.display = "flex";
+        assetRow.style.gap = "7px";
+        assetRow.style.flexWrap = "wrap";
+        const assets = [
+          ...player.loadout.weapons.map((weapon) => ({
+            id: weapon.weaponId,
+            kind: "weapon" as const,
+            title: `${weapon.displayName} · Lv.${weapon.level}`
+          })),
+          ...player.loadout.items.map((item) => ({
+            id: item.itemId,
+            kind: "item" as const,
+            title: `${item.displayName} · Lv.${item.level}`
+          }))
+        ];
+        if (assets.length === 0) {
+          const empty = document.createElement("span");
+          empty.style.color = "#94a3b8";
+          empty.style.fontSize = "12px";
+          empty.textContent = en ? "No equipment" : "Keine Ausrüstung";
+          assetRow.appendChild(empty);
+        }
+        for (const asset of assets) {
+          const tile = document.createElement("div");
+          tile.title = asset.title;
+          tile.style.width = "46px";
+          tile.style.height = "46px";
+          tile.style.padding = "4px";
+          tile.style.borderRadius = "11px";
+          tile.style.background = "rgba(2, 6, 23, 0.5)";
+          tile.style.border = "1px solid rgba(226, 232, 240, 0.16)";
+          const image = document.createElement("img");
+          image.src = resolveArenaSurvivorShopIconPath(asset.kind, asset.id, state.visualTheme);
+          image.alt = asset.title;
+          image.style.width = "100%";
+          image.style.height = "100%";
+          image.style.objectFit = "contain";
+          tile.appendChild(image);
+          assetRow.appendChild(tile);
+        }
 
         const statsLine = document.createElement("div");
-        statsLine.style.fontSize = "13px";
-        statsLine.style.color = "#e2e8f0";
-        statsLine.textContent = formatPlayerStats(player);
+        statsLine.style.fontSize = "12px";
+        statsLine.style.color = "#94a3b8";
+        statsLine.textContent = `${formatPlayerStats(player)}  |  M ${player.runSummary.totalMaterialsCollected}`;
 
-        const itemsLine = document.createElement("div");
-        itemsLine.style.fontSize = "12px";
-        itemsLine.style.color = "#94a3b8";
-        itemsLine.textContent =
-          player.loadout.items.length > 0
-            ? player.loadout.items.map((item) => `${item.displayName} Lv.${item.level}`).join("  |  ")
-            : en ? "No items" : "Keine Items";
-
-        card.appendChild(title);
-        card.appendChild(performanceLine);
-        card.appendChild(weaponLine);
-        card.appendChild(statsLine);
-        card.appendChild(itemsLine);
+        content.appendChild(title);
+        content.appendChild(statGrid);
+        content.appendChild(assetRow);
+        content.appendChild(statsLine);
+        card.appendChild(portrait);
+        card.appendChild(content);
+        card.animate(
+          [
+            { opacity: 0, transform: "translateY(12px)" },
+            { opacity: 1, transform: "translateY(0)" }
+          ],
+          { duration: 260, delay: playerIndex * 55, easing: "cubic-bezier(.2,.8,.2,1)", fill: "both" }
+        );
         return card;
-      })
+      });
+    summaryBody.replaceChildren(...playerSummaries);
+    summaryCard.animate(
+      [
+        { opacity: 0, transform: "translate(-50%, -47%) scale(.98)" },
+        { opacity: 1, transform: "translate(-50%, -50%) scale(1)" }
+      ],
+      { duration: 240, easing: "cubic-bezier(.2,.8,.2,1)" }
     );
   }
 

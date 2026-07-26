@@ -14,6 +14,8 @@ import { loadArenaSurvivorAssets, resolveArenaSurvivorBackgroundKey } from "./ar
 
 interface HostClientLike {
   subscribe(callback: (state: HostAppStateLike) => void): () => void;
+  selectGame(gameId: string): void;
+  sendGameHostAction(gameId: string, action: unknown): void;
 }
 
 interface HostAppStateLike {
@@ -46,6 +48,12 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
 
   create(): void {
     const client = this.registry.get("hostClient") as HostClientLike;
+    const canvasContext = this.game.canvas.getContext("2d");
+
+    if (canvasContext) {
+      canvasContext.imageSmoothingEnabled = true;
+      canvasContext.imageSmoothingQuality = "high";
+    }
 
     this.cameras.main.setBackgroundColor("#020617");
     this.arenaBackground = this.add.image(0, 0, resolveArenaSurvivorBackgroundKey()).setOrigin(0, 0);
@@ -57,7 +65,14 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     this.arenaGraphics = this.add.graphics();
     this.entityGraphics = this.add.graphics();
     this.playerHealthGraphics = this.add.graphics().setDepth(12);
-    this.hud = createArenaHud();
+    this.hud = createArenaHud({
+      onRestartRun: () => {
+        client.sendGameHostAction("arena-survivor", { type: "restart-run" });
+      },
+      onReturnToSetup: () => {
+        client.selectGame("arena-survivor");
+      }
+    });
 
     this.unsubscribe = client.subscribe((state) => {
       const gameState = (state.game?.state ?? null) as ArenaSurvivorState | null;
