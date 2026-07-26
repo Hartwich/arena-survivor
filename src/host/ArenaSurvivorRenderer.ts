@@ -6,11 +6,14 @@ import {
   ARENA_SURVIVOR_MAX_WEAPON_SLOTS,
   resolveArenaSurvivorWeaponOrbitDistance,
   resolveArenaSurvivorWeaponSlotTransform,
+  type ArenaSurvivorPlayerState,
   type ArenaSurvivorState,
   type ArenaSurvivorWeaponCategory
 } from "../protocol.js";
 import {
+  arenaSurvivorMarshmallowRigKeys,
   resolveArenaSurvivorEnemySpriteKey,
+  resolveArenaSurvivorMarshmallowHeadbandKey,
   resolveArenaSurvivorPickupSpriteKey,
   resolveArenaSurvivorPlayerSpriteKey,
   resolveArenaSurvivorWeaponCarrySpriteKey
@@ -499,9 +502,21 @@ export interface ArenaSurvivorRenderMeta {
 
 export interface ArenaSurvivorSpriteLayer {
   playerSprites: Map<string, Phaser.GameObjects.Image>;
+  marshmallowPlayerRigs: Map<string, ArenaSurvivorMarshmallowPlayerRig>;
   enemySprites: Map<string, Phaser.GameObjects.Image>;
   pickupSprites: Map<string, Phaser.GameObjects.Image>;
   weaponSprites: Map<string, Phaser.GameObjects.Image>;
+}
+
+interface ArenaSurvivorMarshmallowPlayerRig {
+  container: Phaser.GameObjects.Container;
+  torso: Phaser.GameObjects.Image;
+  leftHand: Phaser.GameObjects.Image;
+  rightHand: Phaser.GameObjects.Image;
+  leftFoot: Phaser.GameObjects.Image;
+  rightFoot: Phaser.GameObjects.Image;
+  face: Phaser.GameObjects.Graphics;
+  headgear: Phaser.GameObjects.Image;
 }
 
 export function resolveArenaSurvivorRenderMeta(
@@ -581,10 +596,177 @@ export function applyArenaSurvivorCamera(
 export function createArenaSurvivorSpriteLayer(): ArenaSurvivorSpriteLayer {
   return {
     playerSprites: new Map(),
+    marshmallowPlayerRigs: new Map(),
     enemySprites: new Map(),
     pickupSprites: new Map(),
     weaponSprites: new Map()
   };
+}
+
+function createMarshmallowPlayerRig(
+  scene: Phaser.Scene,
+  torsoKey: string,
+  headgearKey: string
+): ArenaSurvivorMarshmallowPlayerRig {
+  const leftFoot = scene.add.image(0, 0, arenaSurvivorMarshmallowRigKeys.foot).setOrigin(0.5);
+  const rightFoot = scene.add.image(0, 0, arenaSurvivorMarshmallowRigKeys.foot).setOrigin(0.5);
+  const torso = scene.add.image(0, 0, torsoKey).setOrigin(0.5);
+  const face = scene.add.graphics();
+  const headgear = scene.add.image(0, 0, headgearKey).setOrigin(0.5);
+  const leftHand = scene.add.image(0, 0, arenaSurvivorMarshmallowRigKeys.hand).setOrigin(0.5);
+  const rightHand = scene.add.image(0, 0, arenaSurvivorMarshmallowRigKeys.hand).setOrigin(0.5);
+  const container = scene.add.container(0, 0, [
+    leftFoot,
+    rightFoot,
+    torso,
+    face,
+    headgear,
+    leftHand,
+    rightHand
+  ]);
+  container.setDepth(10);
+  return { container, torso, leftHand, rightHand, leftFoot, rightFoot, face, headgear };
+}
+
+function drawMarshmallowFace(
+  graphics: Phaser.GameObjects.Graphics,
+  bodyX: number,
+  bodyBottom: number,
+  scaleX: number,
+  scaleY: number,
+  shearX: number,
+  gazeX: number,
+  gazeY: number,
+  elapsedMs: number
+): void {
+  const eyeCenterY = -306 * 0.62;
+  const blinkPhase = elapsedMs % 4_600;
+  const blink = blinkPhase > 4_390
+    ? Math.max(0.1, Math.abs(blinkPhase - 4_495) / 105)
+    : 1;
+  graphics.clear();
+  graphics.setPosition(bodyX, bodyBottom);
+  graphics.setScale(scaleX, scaleY);
+  graphics.setRotation(shearX * 0.35);
+
+  for (const direction of [-1, 1]) {
+    const eyeX = direction * 49;
+    graphics.fillStyle(0xfffae1, 0.96);
+    graphics.lineStyle(3, 0x532d1f, 0.92);
+    graphics.fillEllipse(eyeX, eyeCenterY, 44, Math.max(4, 54 * blink));
+    graphics.strokeEllipse(eyeX, eyeCenterY, 44, Math.max(4, 54 * blink));
+    if (blink > 0.26) {
+      graphics.fillStyle(0x382119, 1);
+      graphics.fillEllipse(eyeX + gazeX, eyeCenterY + gazeY, 20, 30);
+      graphics.fillStyle(0xffffff, 0.96);
+      graphics.fillCircle(eyeX + gazeX - 3, eyeCenterY + gazeY - 5, 3.2);
+    }
+  }
+  graphics.lineStyle(3.2, 0x633528, 1);
+  graphics.beginPath();
+  graphics.arc(0, eyeCenterY + 30, 24, 0.2, Math.PI - 0.2);
+  graphics.strokePath();
+}
+
+function updateMarshmallowPlayerRig(
+  rig: ArenaSurvivorMarshmallowPlayerRig,
+  player: ArenaSurvivorPlayerState,
+  state: ArenaSurvivorState,
+  torsoKey: string,
+  playerPosition: { x: number; y: number; pulseScale: number }
+): void {
+  const displaySize = resolvePlayerDisplayRadius(player.radius) * 2 * playerPosition.pulseScale;
+  const rigScale = displaySize / 380;
+  const speed = Math.hypot(player.vx, player.vy);
+  const speedRatio = Phaser.Math.Clamp(speed / Math.max(1, player.moveSpeed), 0, 1);
+  const moving = speedRatio > 0.035;
+  const legMotion = 0.3 + speedRatio * 0.7;
+  const cyclePerSecond = moving ? 0.58 + speedRatio * 0.52 : 0.42;
+  const phase = (state.elapsedMs / 1000) * Math.PI * 2 * cyclePerSecond;
+  const walkDirection = player.vx < -1 ? -1 : 1;
+  const step = moving ? Math.sin(phase) * walkDirection : 0;
+  const compression = moving ? Math.cos(phase * 2) : Math.sin(phase);
+  const warpAmount = (moving ? 0.032 : 0.018) * 0.55;
+  const stride = (moving ? step * 25 : Math.sin(phase) * 1.5) * legMotion;
+  const walkBounce = moving ? (1 - Math.cos(phase * 2)) * 2.2 : 0;
+  const idleBob = moving ? 0 : Math.sin(phase) * 0.8;
+  const bodyX = moving ? step * 2.2 : 0;
+  const bodyBottom = 150 - 0.1 * 145 - walkBounce - idleBob;
+  const scaleX = 1 + compression * warpAmount;
+  const scaleY = 1 - compression * warpAmount * 0.92;
+  const shearX = (moving ? step * 0.012 : Math.sin(phase) * 0.004) * 0.55;
+  const limbDistance = 0.36 * 162;
+  const leftLift = (moving ? Math.max(0, step) * 20 : 0) * legMotion;
+  const rightLift = (moving ? Math.max(0, -step) * 20 : 0) * legMotion;
+  const footCenterY = 150 - 31 * 1.08 * 1.05;
+  const footRotation = step * 0.13 * legMotion;
+  const shoulderY = 150 - (155 + 0.16 * 92);
+  const armGap = (0.45 / 0.5) * 184;
+  const armSwing = moving ? Math.sin(phase) * walkDirection : Math.sin(state.elapsedMs * 0.0018) * 0.12;
+
+  rig.container.setVisible(player.alive);
+  rig.container.setPosition(playerPosition.x, playerPosition.y);
+  rig.container.setScale(rigScale);
+  rig.container.setAlpha(player.alive ? 1 : 0.42);
+  if (rig.torso.texture.key !== torsoKey) {
+    rig.torso.setTexture(torsoKey);
+  }
+  rig.torso.setPosition(bodyX, bodyBottom - 153);
+  rig.torso.setDisplaySize(330 * scaleX, 306 * scaleY);
+  rig.torso.setRotation(shearX * 0.35);
+
+  rig.leftFoot.setPosition(bodyX - limbDistance + stride, footCenterY - leftLift);
+  rig.rightFoot.setPosition(bodyX + limbDistance - stride, footCenterY - rightLift);
+  rig.leftFoot.setDisplaySize(86, 62).setRotation(footRotation);
+  rig.rightFoot.setDisplaySize(86, 62).setRotation(-footRotation);
+
+  rig.leftHand.setPosition(bodyX - armGap, shoulderY + armSwing * 15);
+  rig.rightHand.setPosition(bodyX + armGap, shoulderY - armSwing * 15);
+  rig.leftHand.setDisplaySize(58, 46).setRotation(-0.2 + armSwing * 0.22);
+  rig.rightHand.setDisplaySize(58, 46).setRotation(0.2 + armSwing * 0.22);
+
+  let targetX = player.x + Math.cos(player.facingAngleRad) * 100;
+  let targetY = player.y + Math.sin(player.facingAngleRad) * 100;
+  let targetDistance = Number.POSITIVE_INFINITY;
+  for (const enemy of state.enemies) {
+    if (!enemy.alive) {
+      continue;
+    }
+    const distance = Phaser.Math.Distance.Squared(player.x, player.y, enemy.x, enemy.y);
+    if (distance < targetDistance) {
+      targetDistance = distance;
+      targetX = enemy.x;
+      targetY = enemy.y;
+    }
+  }
+  const targetAngle = Math.atan2(targetY - player.y, targetX - player.x);
+  drawMarshmallowFace(
+    rig.face,
+    bodyX,
+    bodyBottom,
+    scaleX,
+    scaleY,
+    shearX,
+    Math.cos(targetAngle) * 11,
+    Math.sin(targetAngle) * 8,
+    state.elapsedMs
+  );
+
+  const wearsHelmet = player.character.id === "sir-pampel-panzer";
+  const headgearKey = wearsHelmet
+    ? arenaSurvivorMarshmallowRigKeys.helmet
+    : resolveArenaSurvivorMarshmallowHeadbandKey(player.color);
+  if (rig.headgear.texture.key !== headgearKey) {
+    rig.headgear.setTexture(headgearKey);
+  }
+  if (wearsHelmet) {
+    rig.headgear.setPosition(bodyX, bodyBottom - 306 + 113.5 - 101);
+    rig.headgear.setDisplaySize(360 * scaleX, 202 * scaleY);
+  } else {
+    rig.headgear.setPosition(bodyX, bodyBottom - 306 + 47.5 + 37);
+    rig.headgear.setDisplaySize(410 * scaleX, 74 * scaleY);
+  }
+  rig.headgear.setRotation(shearX * 0.35);
 }
 
 export function drawArenaSurvivorBackground(
@@ -798,6 +980,29 @@ export function syncArenaSurvivorSpriteLayer(
     let playerSprite = layer.playerSprites.get(player.playerId);
     const playerPosition = resolvePlayerVisualPosition(player, state.elapsedMs);
 
+    if (state.visualTheme === "marshmallow-mayhem") {
+      if (playerSprite) {
+        playerSprite.setVisible(false);
+      }
+      let rig = layer.marshmallowPlayerRigs.get(player.playerId);
+      const wearsHelmet = player.character.id === "sir-pampel-panzer";
+      const headgearKey = wearsHelmet
+        ? arenaSurvivorMarshmallowRigKeys.helmet
+        : resolveArenaSurvivorMarshmallowHeadbandKey(player.color);
+      if (!rig) {
+        rig = createMarshmallowPlayerRig(scene, spriteKey, headgearKey);
+        layer.marshmallowPlayerRigs.set(player.playerId, rig);
+      }
+      updateMarshmallowPlayerRig(rig, player, state, spriteKey, playerPosition);
+      continue;
+    }
+
+    const marshmallowRig = layer.marshmallowPlayerRigs.get(player.playerId);
+    if (marshmallowRig) {
+      marshmallowRig.container.destroy(true);
+      layer.marshmallowPlayerRigs.delete(player.playerId);
+    }
+
     if (!scene.textures.exists(spriteKey)) {
       if (playerSprite) {
         playerSprite.setVisible(false);
@@ -826,6 +1031,13 @@ export function syncArenaSurvivorSpriteLayer(
     if (!activePlayerIds.has(playerId)) {
       playerSprite.destroy();
       layer.playerSprites.delete(playerId);
+    }
+  }
+
+  for (const [playerId, rig] of layer.marshmallowPlayerRigs) {
+    if (!activePlayerIds.has(playerId)) {
+      rig.container.destroy(true);
+      layer.marshmallowPlayerRigs.delete(playerId);
     }
   }
 

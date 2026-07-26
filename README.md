@@ -12,6 +12,7 @@ Beta. The survival loop, character choice, and lobby setup are already good to p
 
 The host can select the complete art set during run setup:
 
+- **Marshmallow Mayhem** combines thirteen face-safe toasted torso variants with the Motion Lab's wide procedural rig. Eyes track nearby enemies, idle/walk use the transferred warp motion, leg movement scales from 30 to 100 percent with player speed, the tank wears a helmet, and every other player receives a color-matched headband. The set also contains its own cocoa arena, seven confection enemy families, complete weapon/item catalogs, pickups, upgrades, HUD colors, and procedural music profile.
 - **Frostfire Saga** is the default original hand-painted Nordic storybook set generated specifically for Arena Survivor. It covers the complete catalog and includes its own illustrated arena, HUD palette, waffenlose gameplay sprites, themed pickups, level-up icons, and procedural Nordic background music. Its armed character illustrations remain the lobby-selection portraits.
 - **Obsidian Relay** is a detailed sci-fi set with its own arena map and a complete one-to-one catalog: 13 character visuals, 21 weapon visuals, 22 item icons, and 7 enemy families.
 - **Classic Arena** keeps the original warm organic presentation.

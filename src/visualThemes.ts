@@ -4,6 +4,11 @@ export const arenaSurvivorDefaultVisualTheme: ArenaSurvivorVisualTheme = "frostf
 
 export const arenaSurvivorVisualThemeOptions = [
   {
+    id: "marshmallow-mayhem",
+    label: "Marshmallow Mayhem",
+    description: "Geröstete Aquarellwelt mit lebendigen Wide-Rigs, Blickanimation und süßen Monstern."
+  },
+  {
     id: "frostfire-saga",
     label: "Frostfire Saga",
     description: "Handgemalte nordische Storybook-Welt mit Eis, Glut, Runen und geschnitztem Holz."
@@ -145,12 +150,31 @@ const frostfireEnemyAssets: Record<string, string> = {
   "crimson-overlord": "frostfire-dragon"
 };
 
+const marshmallowEnemyAssets: Record<string, string> = {
+  "slime-blob": "jam-ooze",
+  "fang-crawler": "licorice-crawler",
+  "needle-runner": "licorice-crawler",
+  "stone-brute": "cracker-golem",
+  "shell-bulwark": "campfire-knight",
+  "ember-wisp": "ember-imp",
+  "toxic-shroom": "cocoa-spitter",
+  "ash-spitter": "ember-imp",
+  "plague-lobber": "cocoa-spitter",
+  "iron-mauler": "campfire-knight",
+  "loot-runner": "jam-ooze",
+  "charger-hulk": "licorice-crawler",
+  "elite-spitter": "ember-imp",
+  "scrap-goliath": "cracker-golem",
+  "crimson-overlord": "smore-titan"
+};
+
 type ArenaSurvivorAlternateVisualTheme = Exclude<ArenaSurvivorVisualTheme, "classic">;
 
 export function isArenaSurvivorVisualTheme(value: unknown): value is ArenaSurvivorVisualTheme {
   return value === "classic"
     || value === "obsidian-relay"
-    || value === "frostfire-saga";
+    || value === "frostfire-saga"
+    || value === "marshmallow-mayhem";
 }
 
 export function resolveArenaSurvivorCharacterThemeAssetId(
@@ -158,6 +182,9 @@ export function resolveArenaSurvivorCharacterThemeAssetId(
   theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
 ): string {
   if (theme === "frostfire-saga") {
+    return frostfireCharacterAssets[characterId] ?? "rundling-allround";
+  }
+  if (theme === "marshmallow-mayhem") {
     return frostfireCharacterAssets[characterId] ?? "rundling-allround";
   }
   return characterAssets[characterId] ?? "relay-artificer";
@@ -170,6 +197,9 @@ export function resolveArenaSurvivorEnemyThemeAssetId(
   if (theme === "frostfire-saga") {
     return frostfireEnemyAssets[enemyId] ?? "frost-slime";
   }
+  if (theme === "marshmallow-mayhem") {
+    return marshmallowEnemyAssets[enemyId] ?? "jam-ooze";
+  }
   return enemyAssets[enemyId] ?? "nano-swarm";
 }
 
@@ -180,6 +210,9 @@ export function resolveArenaSurvivorWeaponThemeAssetId(
   if (theme === "frostfire-saga") {
     return frostfireWeaponAssets[weaponId] ?? "rust-blade";
   }
+  if (theme === "marshmallow-mayhem") {
+    return frostfireWeaponAssets[weaponId] ?? "rust-blade";
+  }
   return weaponAssets[weaponId] ?? "pulse-carbine";
 }
 
@@ -188,6 +221,9 @@ export function resolveArenaSurvivorItemThemeAssetId(
   theme: ArenaSurvivorAlternateVisualTheme = "obsidian-relay"
 ): string {
   if (theme === "frostfire-saga") {
+    return frostfireItemAssets[itemId] ?? "arcane-crystal";
+  }
+  if (theme === "marshmallow-mayhem") {
     return frostfireItemAssets[itemId] ?? "arcane-crystal";
   }
   return itemAssets[itemId] ?? "arcane-module";
@@ -208,6 +244,10 @@ export function resolveArenaSurvivorCharacterPortraitPath(
 ): string {
   if (theme === "classic") {
     return `/arena-survivor/themes/classic/characters/portraits/${characterId}.svg`;
+  }
+
+  if (theme === "marshmallow-mayhem") {
+    return `/arena-survivor/themes/marshmallow-mayhem/characters/portraits/${characterId}.png`;
   }
 
   return resolveArenaSurvivorThemeAssetPath(
@@ -242,7 +282,8 @@ export function resolveArenaSurvivorLevelBonusIconPath(
   bonusId: string,
   theme: ArenaSurvivorVisualTheme
 ): string | undefined {
-  return theme === "frostfire-saga"
-    ? `/arena-survivor/themes/frostfire-saga/upgrades/${bonusId}.png`
-    : undefined;
+  if (theme === "frostfire-saga" || theme === "marshmallow-mayhem") {
+    return `/arena-survivor/themes/${theme}/upgrades/${bonusId}.png`;
+  }
+  return undefined;
 }
