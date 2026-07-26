@@ -27,6 +27,7 @@ interface HostAppStateLike {
 export class ArenaSurvivorHostScene extends Phaser.Scene {
   private unsubscribe?: () => void;
   private arenaBackground?: Phaser.GameObjects.Image;
+  private arenaBackgroundShade?: Phaser.GameObjects.Rectangle;
   private arenaGraphics?: Phaser.GameObjects.Graphics;
   private entityGraphics?: Phaser.GameObjects.Graphics;
   private playerHealthGraphics?: Phaser.GameObjects.Graphics;
@@ -50,6 +51,9 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     this.arenaBackground = this.add.image(0, 0, resolveArenaSurvivorBackgroundKey()).setOrigin(0, 0);
     this.arenaBackground.setDepth(-50);
     this.arenaBackground.setVisible(false);
+    this.arenaBackgroundShade = this.add.rectangle(0, 0, 1, 1, 0x24120d, 0.3).setOrigin(0, 0);
+    this.arenaBackgroundShade.setDepth(-49);
+    this.arenaBackgroundShade.setVisible(false);
     this.arenaGraphics = this.add.graphics();
     this.entityGraphics = this.add.graphics();
     this.playerHealthGraphics = this.add.graphics().setDepth(12);
@@ -64,11 +68,15 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
 
       if (!gameState) {
         this.arenaBackground?.setVisible(false);
+        this.arenaBackgroundShade?.setVisible(false);
         this.arenaGraphics.clear();
         this.entityGraphics.clear();
         this.playerHealthGraphics.clear();
         for (const playerSprite of this.spriteLayer.playerSprites.values()) {
           playerSprite.setVisible(false);
+        }
+        for (const rig of this.spriteLayer.marshmallowPlayerRigs.values()) {
+          rig.container.setVisible(false);
         }
         for (const enemySprite of this.spriteLayer.enemySprites.values()) {
           enemySprite.setVisible(false);
@@ -101,6 +109,12 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
         this.arenaBackground.setPosition(0, 0);
         this.arenaBackground.setDisplaySize(gameState.arenaWidth, gameState.arenaHeight);
       }
+      if (this.arenaBackgroundShade) {
+        const useShade = gameState.visualTheme === "marshmallow-mayhem";
+        this.arenaBackgroundShade.setVisible(useShade);
+        this.arenaBackgroundShade.setPosition(0, 0);
+        this.arenaBackgroundShade.setSize(gameState.arenaWidth, gameState.arenaHeight);
+      }
       applyArenaSurvivorCamera(this, meta);
 
       if (shouldResetArena) {
@@ -120,6 +134,8 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       this.unsubscribe = undefined;
       this.arenaBackground?.destroy();
       this.arenaBackground = undefined;
+      this.arenaBackgroundShade?.destroy();
+      this.arenaBackgroundShade = undefined;
       this.arenaGraphics?.destroy();
       this.arenaGraphics = undefined;
       this.entityGraphics?.destroy();
@@ -138,6 +154,10 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
         playerSprite.destroy();
       }
       this.spriteLayer.playerSprites.clear();
+      for (const rig of this.spriteLayer.marshmallowPlayerRigs.values()) {
+        rig.container.destroy(true);
+      }
+      this.spriteLayer.marshmallowPlayerRigs.clear();
       for (const weaponSprite of this.spriteLayer.weaponSprites.values()) {
         weaponSprite.destroy();
       }
