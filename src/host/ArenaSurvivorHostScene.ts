@@ -11,6 +11,8 @@ import {
 } from "./ArenaSurvivorRenderer.js";
 import { createArenaHud } from "./hud/ArenaHud.js";
 import { loadArenaSurvivorAssets, resolveArenaSurvivorBackgroundKey } from "./arenaSurvivorAssets.js";
+import { renderRoundScreens } from "./roundScreens.js";
+import { bindPlatformTheme, tokens } from "./platformTheme.js";
 
 interface HostClientLike {
   subscribe(callback: (state: HostAppStateLike) => void): () => void;
@@ -47,6 +49,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
   }
 
   create(): void {
+    bindPlatformTheme(this.registry);
     const client = this.registry.get("hostClient") as HostClientLike;
     const canvasContext = this.game.canvas.getContext("2d");
 
@@ -55,7 +58,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       canvasContext.imageSmoothingQuality = "high";
     }
 
-    this.cameras.main.setBackgroundColor("#020617");
+    this.cameras.main.setBackgroundColor(tokens().color.background);
     this.arenaBackground = this.add.image(0, 0, resolveArenaSurvivorBackgroundKey()).setOrigin(0, 0);
     this.arenaBackground.setDepth(-50);
     this.arenaBackground.setVisible(false);
@@ -75,6 +78,11 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     });
 
     this.unsubscribe = client.subscribe((state) => {
+      // Intro and result screens belong to this game, not the platform.
+      if (renderRoundScreens(this, state)) {
+        return;
+      }
+
       const gameState = (state.game?.state ?? null) as ArenaSurvivorState | null;
 
       if (!this.arenaGraphics || !this.entityGraphics || !this.playerHealthGraphics || !this.hud) {

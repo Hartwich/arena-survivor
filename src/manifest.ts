@@ -87,5 +87,19 @@ export const arenaSurvivorManifest = {
     countdownMs: 2_000,
     resultMs: 4_000,
     scoreboardMs: 4_000
-  }
+  },
+
+  ownsScreens: ["round_intro", "result"],
+  visual: { accent: "#b1503a", eyebrow: "Arena" },
+  audio: {
+    track: { profile: "battle", bpm: 108, rootMidi: 45, masterGain: 0.18 },
+    trackBySetting: {
+      settingKey: "arenaSurvivorVisualTheme",
+      values: {
+        "frostfire-saga": { profile: "frostfire", bpm: 92, rootMidi: 50, masterGain: 0.15 },
+        "marshmallow-mayhem": { profile: "sugarCountry", bpm: 114, rootMidi: 52, masterGain: 0.14 }
+      }
+    }
+  },
+  hostChrome: { joinOverlayWhenFinished: false },
 } as const satisfies GameManifest;

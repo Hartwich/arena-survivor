@@ -19,6 +19,7 @@ import {
   resolveArenaSurvivorWeaponCarrySpriteKey
 } from "./arenaSurvivorAssets.js";
 import { arenaSurvivorVisualConfig } from "./arenaSurvivorVisualConfig.js";
+import { tokens } from "./platformTheme.js";
 
 function toColor(color: string): number {
   return Phaser.Display.Color.HexStringToColor(color).color;
@@ -944,7 +945,7 @@ export function drawArenaSurvivorEntities(
     }
 
     if (!scene.textures.exists(resolveArenaSurvivorPlayerSpriteKey(player.character.id, state.visualTheme))) {
-      const playerColor = player.alive ? toColor(player.color) : toColor("#64748b");
+      const playerColor = player.alive ? toColor(player.color) : toColor(tokens().color.muted);
 
       graphics.fillStyle(0x020617, 0.35);
       graphics.fillEllipse(playerX, playerY + playerDisplayRadius * 0.92, playerDisplayRadius * 1.45, playerDisplayRadius * 0.46);
