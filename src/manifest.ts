@@ -90,7 +90,7 @@ export const arenaSurvivorManifest = {
   },
 
   ownsScreens: ["round_intro", "result"],
-  visual: { accent: "#b1503a", eyebrow: "Arena" },
+  visual: { accent: "#b1503a", icon: "swords", eyebrow: "Arena" },
   audio: {
     track: { profile: "battle", bpm: 108, rootMidi: 45, masterGain: 0.18 },
     trackBySetting: {
