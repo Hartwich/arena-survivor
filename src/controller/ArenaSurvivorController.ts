@@ -114,6 +114,7 @@ interface VirtualJoystickLayoutModel {
   subtitle?: string;
   helperText?: string;
   minimal?: boolean;
+  stickPlacement?: "center" | "bottom";
   disabled: boolean;
   accentColor?: string;
   resetKey: string;
@@ -414,6 +415,8 @@ function buildArenaSurvivorJoystickModel(
     kind: "virtual_joystick",
     title: player?.name ?? "Arena Survivor",
     minimal: true,
+    // Thumb zone: the stick sits at the lower screen edge while playing.
+    stickPlacement: "bottom",
     subtitle: running
       ? en
         ? "Move freely. Auto-fire is active."

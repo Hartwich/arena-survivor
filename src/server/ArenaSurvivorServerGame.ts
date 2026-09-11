@@ -9,11 +9,11 @@ import {
 } from "@open-party-lab/game-core";
 import type {
   ArenaSurvivorHostAction,
-  ArenaSurvivorEnemyState,
+  ArenaSurvivorEnemyRenderState,
   ArenaSurvivorInput,
   ArenaSurvivorPickupState,
   ArenaSurvivorPlayerState,
-  ArenaSurvivorProjectileState
+  ArenaSurvivorProjectileRenderState
 } from "../protocol.js";
 import { arenaSurvivorSetupConfig } from "../protocol.js";
 import { arenaSurvivorManifest } from "../manifest.js";
@@ -132,16 +132,71 @@ function toPublicPlayer(player: ArenaSurvivorRuntimePlayerState): ArenaSurvivorP
   return publicPlayer;
 }
 
-function toPublicEnemy(enemy: ArenaSurvivorRuntimeEnemyState): ArenaSurvivorEnemyState {
-  const { spawnedAtMs: _spawnedAtMs, ...publicEnemy } = enemy;
-  return publicEnemy;
+function toPublicEnemy(enemy: ArenaSurvivorRuntimeEnemyState): ArenaSurvivorEnemyRenderState {
+  return {
+    id: enemy.id,
+    definitionId: enemy.definitionId,
+    role: enemy.role,
+    x: enemy.x,
+    y: enemy.y,
+    vx: enemy.vx,
+    vy: enemy.vy,
+    radius: enemy.radius,
+    hp: enemy.hp,
+    maxHp: enemy.maxHp,
+    alive: enemy.alive
+  };
 }
 
 function toPublicProjectile(
   projectile: ArenaSurvivorRuntimeProjectileState
-): ArenaSurvivorProjectileState {
-  const { spawnedAtMs: _spawnedAtMs, ...publicProjectile } = projectile;
-  return publicProjectile;
+): ArenaSurvivorProjectileRenderState {
+  return {
+    id: projectile.id,
+    ownerKind: projectile.ownerKind,
+    definitionId: projectile.definitionId,
+    x: projectile.x,
+    y: projectile.y,
+    vx: projectile.vx,
+    vy: projectile.vy,
+    radius: projectile.radius,
+    alive: projectile.alive
+  };
+}
+
+/**
+ * What a phone gets while a wave runs.
+ *
+ * The controller only shows its own player (HUD values, shop, loadout) and never
+ * draws the arena. Sending every phone the full enemy, projectile and pickup
+ * lists cost Wi-Fi airtime and a large JSON parse on the phone per server tick,
+ * which is the same main thread that has to deliver the stick's pointer events.
+ * The host still receives the full state through `toPublicState`.
+ */
+function toSlimControllerState(
+  state: ArenaSurvivorRuntimeState,
+  players: ArenaSurvivorPlayerState[]
+): ArenaSurvivorPublicState {
+  return {
+    visualTheme: state.visualTheme,
+    arenaWidth: state.arenaWidth,
+    arenaHeight: state.arenaHeight,
+    waveNumber: state.waveNumber,
+    difficultyLevel: state.difficultyLevel,
+    elapsedMs: state.elapsedMs,
+    remainingMs: state.remainingMs,
+    kills: state.kills,
+    players,
+    difficultyTier: state.difficultyTier,
+    enemies: [],
+    projectiles: [],
+    pickups: [],
+    spawnIndicators: [],
+    result: {
+      ...state.result
+    },
+    seed: state.seed
+  };
 }
 
 function buildScore(state: ArenaSurvivorRuntimeState): ScoreEntry[] {
@@ -518,7 +573,8 @@ export const arenaSurvivorServerGame: ServerGame<
 
         return {
           ...nextState,
-          updatedAt: input.sentAt ?? context.now
+          // Server clock: `sentAt` is the phone's clock and can be skewed.
+          updatedAt: context.now
         };
       }
 
@@ -544,7 +600,7 @@ export const arenaSurvivorServerGame: ServerGame<
     return {
       ...state,
       players: nextPlayers,
-      updatedAt: input.sentAt ?? context.now
+      updatedAt: context.now
     };
   },
   tick(state, deltaMs, context) {
@@ -624,26 +680,12 @@ export const arenaSurvivorServerGame: ServerGame<
     };
   },
   toControllerState(state) {
-    return {
-      visualTheme: state.visualTheme,
-      arenaWidth: state.arenaWidth,
-      arenaHeight: state.arenaHeight,
-      waveNumber: state.waveNumber,
-      difficultyLevel: state.difficultyLevel,
-      elapsedMs: state.elapsedMs,
-      remainingMs: state.remainingMs,
-      kills: state.kills,
-      players: state.players.map(toPublicPlayer),
-      difficultyTier: state.difficultyTier,
-      enemies: state.enemies.map(toPublicEnemy),
-      projectiles: state.projectiles.map(toPublicProjectile),
-      pickups: state.pickups.map(toPublicPickup),
-      spawnIndicators: state.spawnIndicators.map(toPublicSpawnIndicator),
-      result: {
-        ...state.result
-      },
-      debugInfo: state.debugInfo,
-      seed: state.seed
-    };
+    // Fallback for controller sockets without a player id; the broadcaster
+    // builds it on every emit, so it stays as small as the per-player variant.
+    return toSlimControllerState(state, state.players.map(toPublicPlayer));
+  },
+  toControllerStateForPlayer(state, _context, playerId) {
+    const ownPlayer = state.players.find((player) => player.playerId === playerId);
+    return toSlimControllerState(state, ownPlayer ? [toPublicPlayer(ownPlayer)] : []);
   }
 };

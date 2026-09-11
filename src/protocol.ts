@@ -421,6 +421,24 @@ export interface ArenaSurvivorEnemyState {
   portraitPath?: string;
 }
 
+/**
+ * The part of an enemy the host needs to draw it.
+ *
+ * The full enemy carries its definition (display name, projectile, asset paths,
+ * cooldowns), which tripled the size of every host state for nothing the
+ * screen shows. Everything else stays on the server.
+ */
+export type ArenaSurvivorEnemyRenderState = Pick<
+  ArenaSurvivorEnemyState,
+  "id" | "definitionId" | "role" | "x" | "y" | "vx" | "vy" | "radius" | "hp" | "maxHp" | "alive"
+>;
+
+/** The part of a projectile the host needs to draw it. */
+export type ArenaSurvivorProjectileRenderState = Pick<
+  ArenaSurvivorProjectileState,
+  "id" | "ownerKind" | "definitionId" | "x" | "y" | "vx" | "vy" | "radius" | "alive"
+>;
+
 export type ArenaSurvivorPickupKind = "material" | "health";
 
 export interface ArenaSurvivorPickupDefinition {
@@ -603,8 +621,8 @@ export interface ArenaSurvivorState {
   difficultyTier: number;
   kills: number;
   players: ArenaSurvivorPlayerState[];
-  enemies: ArenaSurvivorEnemyState[];
-  projectiles: ArenaSurvivorProjectileState[];
+  enemies: ArenaSurvivorEnemyRenderState[];
+  projectiles: ArenaSurvivorProjectileRenderState[];
   pickups: ArenaSurvivorPickupState[];
   spawnIndicators: ArenaSurvivorSpawnIndicatorState[];
   result: ArenaSurvivorResultState;

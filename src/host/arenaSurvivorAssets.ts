@@ -231,97 +231,307 @@ export const arenaSurvivorMarshmallowRigKeys = {
 
 const marshmallowHeadbandVariants = ["red", "blue", "green", "gold", "violet", "teal"] as const;
 
-function loadArenaSurvivorImage(scene: Phaser.Scene, key: string, path: string): void {
-  if (scene.textures.exists(key)) {
-    return;
-  }
+/**
+ * Longest texture edge kept in memory for sprites. Characters, enemies, pickups
+ * and weapons are drawn at 30-110 world units; at the arena's maximum camera
+ * zoom on a 4K screen that is at most ~330 px. Some source images are several
+ * times larger, and the Canvas renderer would downscale them again in every
+ * frame for every sprite.
+ */
+const SPRITE_MAX_TEXTURE_EDGE = 384;
+/** Hands and feet of the marshmallow rig are only ~8 world units wide. */
+const RIG_LIMB_MAX_TEXTURE_EDGE = 128;
+/** Helmet and headbands span the torso width. */
+const RIG_HEADGEAR_MAX_TEXTURE_EDGE = 256;
 
-  if (path.endsWith(".svg")) {
-    scene.load.svg(key, path);
-    return;
-  }
-
-  scene.load.image(key, path);
+interface ArenaSurvivorImageAsset {
+  key: string;
+  path: string;
+  /** 0 keeps the texture as loaded (backgrounds fill the whole screen). */
+  maxEdge: number;
 }
 
-export function loadArenaSurvivorAssets(scene: Phaser.Scene): void {
-  for (const asset of [
-    ...arenaSurvivorCharacterAssets,
-    ...arenaSurvivorEnemyAssets,
-    ...obsidianCharacterAssets,
-    ...obsidianEnemyAssets,
-    ...frostfireCharacterAssets,
-    ...frostfireEnemyAssets,
-    ...marshmallowCharacterAssets,
-    ...marshmallowEnemyAssets
-  ]) {
-    loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
-    loadArenaSurvivorImage(scene, asset.portraitKey, asset.portraitPath);
+/** Keys queued once per texture manager, so a missing file is not retried every state. */
+const requestedTextureKeys = new WeakMap<Phaser.Textures.TextureManager, Set<string>>();
+/** Keys already brought down to their size cap. */
+const optimizedTextureKeys = new WeakMap<Phaser.Textures.TextureManager, Set<string>>();
+
+function keySet(
+  registry: WeakMap<Phaser.Textures.TextureManager, Set<string>>,
+  textures: Phaser.Textures.TextureManager
+): Set<string> {
+  let keys = registry.get(textures);
+
+  if (!keys) {
+    keys = new Set();
+    registry.set(textures, keys);
   }
 
-  for (const asset of [
-    ...arenaSurvivorWeaponCarryAssets,
-    ...obsidianWeaponCarryAssets,
-    ...frostfireWeaponCarryAssets,
-    ...marshmallowWeaponCarryAssets
-  ]) {
-    loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
+  return keys;
+}
+
+function resolveWeaponAssetsForTheme(theme: ArenaSurvivorVisualTheme): ReadonlyArray<{
+  id: string;
+  spriteKey: string;
+  spritePath: string;
+}> {
+  if (theme === "obsidian-relay") {
+    return obsidianWeaponCarryAssets;
+  }
+  if (theme === "frostfire-saga") {
+    return frostfireWeaponCarryAssets;
+  }
+  if (theme === "marshmallow-mayhem") {
+    return marshmallowWeaponCarryAssets;
+  }
+  return arenaSurvivorWeaponCarryAssets;
+}
+
+/**
+ * Everything the arena canvas draws for one visual theme.
+ *
+ * Portraits are not part of it: the host canvas never draws them (the HUD and
+ * the lobby use image URLs), and loading all four themes up front cost start-up
+ * time and memory for three sets nobody sees.
+ */
+function collectThemeImageAssets(theme: ArenaSurvivorVisualTheme): ArenaSurvivorImageAsset[] {
+  const assets: ArenaSurvivorImageAsset[] = [];
+  const addSprite = (key: string, path: string, maxEdge = SPRITE_MAX_TEXTURE_EDGE) => {
+    assets.push({ key, path, maxEdge });
+  };
+
+  for (const asset of [...resolveCharacterAssetsForTheme(theme), ...resolveEnemyAssetsForTheme(theme)]) {
+    addSprite(asset.spriteKey, asset.spritePath);
   }
 
-  for (const asset of [...frostfirePickupAssets, ...marshmallowPickupAssets]) {
-    loadArenaSurvivorImage(scene, asset.spriteKey, asset.spritePath);
+  for (const asset of resolveWeaponAssetsForTheme(theme)) {
+    addSprite(asset.spriteKey, asset.spritePath);
   }
 
-  loadArenaSurvivorImage(
-    scene,
-    arenaSurvivorMarshmallowRigKeys.hand,
-    "/arena-survivor/themes/marshmallow-mayhem/rig/hand-knob.png"
-  );
-  loadArenaSurvivorImage(
-    scene,
-    arenaSurvivorMarshmallowRigKeys.foot,
-    "/arena-survivor/themes/marshmallow-mayhem/rig/foot-knob.png"
-  );
-  loadArenaSurvivorImage(
-    scene,
-    arenaSurvivorMarshmallowRigKeys.helmet,
-    "/arena-survivor/themes/marshmallow-mayhem/rig/helmet.png"
-  );
-  for (const color of marshmallowHeadbandVariants) {
-    loadArenaSurvivorImage(
-      scene,
-      `arena-survivor-marshmallow-rig-headband-${color}`,
-      `/arena-survivor/themes/marshmallow-mayhem/rig/headbands/headband-${color}.png`
+  if (theme === "frostfire-saga") {
+    for (const asset of frostfirePickupAssets) {
+      addSprite(asset.spriteKey, asset.spritePath);
+    }
+  }
+
+  if (theme === "marshmallow-mayhem") {
+    for (const asset of marshmallowPickupAssets) {
+      addSprite(asset.spriteKey, asset.spritePath);
+    }
+
+    addSprite(
+      arenaSurvivorMarshmallowRigKeys.hand,
+      "/arena-survivor/themes/marshmallow-mayhem/rig/hand-knob.png",
+      RIG_LIMB_MAX_TEXTURE_EDGE
     );
+    addSprite(
+      arenaSurvivorMarshmallowRigKeys.foot,
+      "/arena-survivor/themes/marshmallow-mayhem/rig/foot-knob.png",
+      RIG_LIMB_MAX_TEXTURE_EDGE
+    );
+    addSprite(
+      arenaSurvivorMarshmallowRigKeys.helmet,
+      "/arena-survivor/themes/marshmallow-mayhem/rig/helmet.png",
+      RIG_HEADGEAR_MAX_TEXTURE_EDGE
+    );
+
+    for (const color of marshmallowHeadbandVariants) {
+      addSprite(
+        `arena-survivor-marshmallow-rig-headband-${color}`,
+        `/arena-survivor/themes/marshmallow-mayhem/rig/headbands/headband-${color}.png`,
+        RIG_HEADGEAR_MAX_TEXTURE_EDGE
+      );
+    }
   }
 
-  if (!scene.textures.exists(arenaSurvivorBackgroundKeys.classic)) {
-    scene.load.svg(
-      arenaSurvivorBackgroundKeys.classic,
-      "/arena-survivor/themes/classic/backgrounds/arena-field.svg"
-    );
+  assets.push({
+    key: arenaSurvivorBackgroundKeys[theme],
+    path: arenaSurvivorBackgroundPaths[theme],
+    maxEdge: 0
+  });
+
+  return assets;
+}
+
+const arenaSurvivorBackgroundPaths: Record<ArenaSurvivorVisualTheme, string> = {
+  classic: "/arena-survivor/themes/classic/backgrounds/arena-field.svg",
+  "obsidian-relay": "/arena-survivor/themes/obsidian-relay/backgrounds/relay-vault.svg",
+  "frostfire-saga": "/arena-survivor/themes/frostfire-saga/backgrounds/frostfire-arena.png",
+  "marshmallow-mayhem": "/arena-survivor/themes/marshmallow-mayhem/backgrounds/cocoa-clearing.png"
+};
+
+/**
+ * Replaces an oversized texture with a copy scaled to `maxEdge`.
+ *
+ * The Canvas renderer draws every sprite with `drawImage`; a 1024 px source
+ * shown at 60 px is resampled in every frame for every sprite, and looks no
+ * better than a 128 px one. Runs the moment the file lands in the texture
+ * cache: the full-size texture is taken out right away, so no sprite can pick
+ * it up, and the smaller copy is added once it has been encoded back into an
+ * image. Canvas-backed textures would be available sooner, but Chrome draws
+ * canvas sources noticeably slower than image sources, so they are only the
+ * fallback. In between, `textures.exists(key)` is false and the renderer uses
+ * the same shape fallback it uses while a file is still loading.
+ */
+function downscaleTexture(
+  scene: Phaser.Scene,
+  key: string,
+  maxEdge: number,
+  onReady?: () => void
+): void {
+  const textures = scene.textures;
+  const source = textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+  const width = source.width;
+  const height = source.height;
+
+  if (!width || !height || Math.max(width, height) <= maxEdge) {
+    return;
   }
 
-  if (!scene.textures.exists(arenaSurvivorBackgroundKeys["obsidian-relay"])) {
-    scene.load.svg(
-      arenaSurvivorBackgroundKeys["obsidian-relay"],
-      "/arena-survivor/themes/obsidian-relay/backgrounds/relay-vault.svg"
-    );
+  const scale = maxEdge / Math.max(width, height);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    return;
   }
 
-  if (!scene.textures.exists(arenaSurvivorBackgroundKeys["frostfire-saga"])) {
-    scene.load.image(
-      arenaSurvivorBackgroundKeys["frostfire-saga"],
-      "/arena-survivor/themes/frostfire-saga/backgrounds/frostfire-arena.png"
-    );
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  textures.remove(key);
+
+  const addCanvasFallback = () => {
+    if (!textures.exists(key)) {
+      textures.addCanvas(key, canvas);
+      onReady?.();
+    }
+  };
+
+  canvas.toBlob((blob) => {
+    if (!blob) {
+      addCanvasFallback();
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.src = url;
+    image
+      .decode()
+      .then(() => {
+        if (!textures.exists(key)) {
+          textures.addImage(key, image);
+          onReady?.();
+        }
+      })
+      .catch(addCanvasFallback)
+      .finally(() => URL.revokeObjectURL(url));
+  }, "image/png");
+}
+
+/**
+ * Downscales each of the batch's images as soon as it is loaded - before the
+ * next frame could create a sprite from the full-size texture.
+ */
+function watchLoadedImages(
+  scene: Phaser.Scene,
+  assets: readonly ArenaSurvivorImageAsset[],
+  onTextureReady?: () => void
+): void {
+  const maxEdgeByKey = new Map(assets.map((asset) => [asset.key, asset.maxEdge]));
+  const optimized = keySet(optimizedTextureKeys, scene.textures);
+  const onFileComplete = (key: string) => {
+    const maxEdge = maxEdgeByKey.get(key);
+
+    if (maxEdge === undefined || optimized.has(key) || !scene.textures.exists(key)) {
+      return;
+    }
+
+    optimized.add(key);
+
+    if (maxEdge > 0) {
+      downscaleTexture(scene, key, maxEdge, onTextureReady);
+    }
+  };
+
+  scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, onFileComplete);
+  scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+    scene.load.off(Phaser.Loader.Events.FILE_COMPLETE, onFileComplete);
+  });
+}
+
+/** Queues the theme's images that are neither loaded nor already requested. */
+function queueThemeImages(scene: Phaser.Scene, theme: ArenaSurvivorVisualTheme): ArenaSurvivorImageAsset[] {
+  const requested = keySet(requestedTextureKeys, scene.textures);
+  const assets = collectThemeImageAssets(theme);
+  let queued = false;
+
+  for (const asset of assets) {
+    if (scene.textures.exists(asset.key) || requested.has(asset.key)) {
+      continue;
+    }
+
+    requested.add(asset.key);
+    queued = true;
+
+    if (asset.path.endsWith(".svg")) {
+      scene.load.svg(asset.key, asset.path);
+    } else {
+      scene.load.image(asset.key, asset.path);
+    }
   }
 
-  if (!scene.textures.exists(arenaSurvivorBackgroundKeys["marshmallow-mayhem"])) {
-    scene.load.image(
-      arenaSurvivorBackgroundKeys["marshmallow-mayhem"],
-      "/arena-survivor/themes/marshmallow-mayhem/backgrounds/cocoa-clearing.png"
-    );
+  return queued ? assets : [];
+}
+
+/**
+ * Preload entry point: only the theme the room has selected.
+ *
+ * Another theme is fetched on demand by `ensureArenaSurvivorThemeAssets` when a
+ * state with a different theme arrives; the renderer draws its shape fallbacks
+ * until then.
+ */
+export function loadArenaSurvivorAssets(
+  scene: Phaser.Scene,
+  theme: ArenaSurvivorVisualTheme = arenaSurvivorDefaultVisualTheme,
+  onTextureReady?: () => void
+): void {
+  const assets = queueThemeImages(scene, theme);
+
+  if (assets.length > 0) {
+    watchLoadedImages(scene, assets, onTextureReady);
   }
+}
+
+/**
+ * Makes sure a theme's images are loaded, loading them in the background if
+ * not. Returns true when everything was already there; otherwise `onLoaded`
+ * runs once the loader finishes.
+ */
+export function ensureArenaSurvivorThemeAssets(
+  scene: Phaser.Scene,
+  theme: ArenaSurvivorVisualTheme,
+  onLoaded: () => void
+): boolean {
+  const assets = queueThemeImages(scene, theme);
+
+  if (assets.length === 0) {
+    return true;
+  }
+
+  watchLoadedImages(scene, assets, onLoaded);
+  scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+    onLoaded();
+  });
+
+  if (!scene.load.isLoading()) {
+    scene.load.start();
+  }
+
+  return false;
 }
 
 function resolveCharacterAssetsForTheme(theme: ArenaSurvivorVisualTheme): readonly ArenaSurvivorAssetDescriptor[] {
@@ -390,14 +600,7 @@ export function resolveArenaSurvivorWeaponCarrySpriteKey(
   weaponId: string,
   theme: ArenaSurvivorVisualTheme = arenaSurvivorDefaultVisualTheme
 ): string | null {
-  const assets = theme === "obsidian-relay"
-    ? obsidianWeaponCarryAssets
-    : theme === "frostfire-saga"
-        ? frostfireWeaponCarryAssets
-        : theme === "marshmallow-mayhem"
-          ? marshmallowWeaponCarryAssets
-        : arenaSurvivorWeaponCarryAssets;
-  const asset = assets.find((entry) => entry.id === weaponId);
+  const asset = resolveWeaponAssetsForTheme(theme).find((entry) => entry.id === weaponId);
   return asset?.spriteKey ?? null;
 }
 

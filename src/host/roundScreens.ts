@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { arenaSurvivorManifest } from "../manifest.js";
+import { tokens } from "./platformTheme.js";
 
 /**
  * Round intro and result screens for Arena Survivor.
@@ -19,19 +20,49 @@ const INTRO_PHASES = new Set(["round_intro", "countdown"]);
 const RESULT_PHASES = new Set(["result", "scoreboard", "finished"]);
 const OVERLAY_DEPTH = 10_000;
 
-/** Warm paper palette, matching the platform shell. */
+/**
+ * The overlay's palette, read live from the room.
+ *
+ * These screens are chrome, not arena artwork: they cover the stage between
+ * rounds, so they follow the room's skin the way the platform shell does. The
+ * values were frozen to the warm paper palette, which meant a dark room still
+ * got a bright card here. The accent stays the game's own hue — that is its
+ * identity, not a platform surface.
+ */
+const ARENA_ACCENT = "#b1503a";
+
 const theme = {
-  background: "#f7f1e7",
-  surface: "#fffbf4",
-  surfaceMuted: "#f3ece0",
-  ink: "#24313a",
-  inkSoft: "#3d4b55",
-  muted: "#697178",
-  line: "#ded5c7",
-  accent: "#b1503a",
-  titleFont: 'Georgia, "Iowan Old Style", "Times New Roman", serif',
-  bodyFont: 'Inter, ui-sans-serif, -apple-system, "Segoe UI", sans-serif',
-  monoFont: '"IBM Plex Mono", ui-monospace, Menlo, monospace'
+  get background() {
+    return tokens().color.background;
+  },
+  get surface() {
+    return tokens().color.surface;
+  },
+  get surfaceMuted() {
+    return tokens().color.surfaceMuted;
+  },
+  get ink() {
+    return tokens().color.text;
+  },
+  get inkSoft() {
+    return tokens().color.textSoft;
+  },
+  get muted() {
+    return tokens().color.muted;
+  },
+  get line() {
+    return tokens().color.line;
+  },
+  accent: ARENA_ACCENT,
+  get titleFont() {
+    return tokens().font.display;
+  },
+  get bodyFont() {
+    return tokens().font.body;
+  },
+  get monoFont() {
+    return tokens().font.mono;
+  }
 };
 
 const hex = (color: string): number => Number.parseInt(color.slice(1), 16);

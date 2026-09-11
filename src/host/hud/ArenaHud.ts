@@ -3,7 +3,6 @@ import {
   resolveArenaSurvivorCharacterPortraitPath,
   resolveArenaSurvivorShopIconPath
 } from "../../visualThemes.js";
-import { tokens } from "../platformTheme.js";
 
 interface RoomSnapshot {
   language?: "de" | "en";
@@ -14,11 +13,31 @@ interface RoomSnapshot {
   }>;
 }
 
+/**
+ * The HUD's own ink, deliberately not the platform theme.
+ *
+ * This overlay is painted on the arena itself — dark in every one of the game's
+ * visual themes, and the backgrounds below are fixed artwork rather than
+ * surfaces that follow the room. A pass that swapped literals for platform
+ * tokens caught these too, and in the light theme that turned the wave report's
+ * stat labels, the material badge and the HP readout into dark text on a
+ * near-black card: present, but invisible. The card decides the ink, not the
+ * room, so these stay fixed.
+ */
+const hudInk = {
+  /** Base colour for everything the overlay's children inherit. */
+  text: "#f8fafc",
+  /** Secondary labels on the dark cards. */
+  textSoft: "#cbd5e1",
+  /** Hints and empty states. */
+  muted: "#94a3b8",
+  /** Unfilled part of the XP and HP tracks. */
+  track: "#1e293b"
+} as const;
+
 const hostTheme = {
   bodyFont: "Inter, system-ui, sans-serif",
-  get text() {
-    return tokens().color.text;
-  }
+  text: hudInk.text
 };
 
 function formatRoundedHp(value: number): string {
@@ -155,7 +174,7 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
     const materialBadge = document.createElement("div");
     materialBadge.style.fontSize = "11px";
     materialBadge.style.fontWeight = "800";
-    materialBadge.style.color = tokens().color.textSoft;
+    materialBadge.style.color = hudInk.textSoft;
     materialBadge.style.padding = "2px 7px";
     materialBadge.style.borderRadius = "999px";
     materialBadge.style.background = "rgba(30, 41, 59, 0.88)";
@@ -182,7 +201,7 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
     xpTrack.style.position = "relative";
     xpTrack.style.height = "14px";
     xpTrack.style.borderRadius = "999px";
-    xpTrack.style.background = tokens().color.line;
+    xpTrack.style.background = hudInk.track;
     xpTrack.style.overflow = "hidden";
 
     const xpFill = document.createElement("div");
@@ -218,14 +237,14 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
     hpLabel.style.justifyContent = "center";
     hpLabel.style.fontSize = "11px";
     hpLabel.style.fontWeight = "800";
-    hpLabel.style.color = tokens().color.textSoft;
+    hpLabel.style.color = hudInk.textSoft;
     hpLabel.style.textShadow = "0 1px 2px rgba(2, 6, 23, 0.85)";
 
     const hpTrack = document.createElement("div");
     hpTrack.style.position = "relative";
     hpTrack.style.height = "13px";
     hpTrack.style.borderRadius = "999px";
-    hpTrack.style.background = tokens().color.line;
+    hpTrack.style.background = hudInk.track;
     hpTrack.style.overflow = "hidden";
 
     const hpFill = document.createElement("div");
@@ -353,8 +372,44 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
   overlay.appendChild(summaryCard);
   document.body.appendChild(overlay);
   let lastSummarySignature = "";
+  let lastRunningSignature: string | null = null;
+
+  /**
+   * Everything the running HUD shows, as rounded display values.
+   *
+   * The HUD gets every host state (~31 Hz), but what it prints changes a few
+   * times per second at most. Writing ~40 styles and texts per update anyway
+   * made the browser recalculate style and layout of the overlay each time.
+   */
+  function buildRunningSignature(state: ArenaSurvivorState, room: RoomSnapshot | null): string {
+    const roundDurationMs = state.elapsedMs + state.remainingMs;
+    const progress = roundDurationMs > 0 ? Math.round((state.elapsedMs / roundDurationMs) * 100) : 100;
+    let signature = `${room?.language ?? ""}|${state.visualTheme}|${state.waveNumber}|${progress}`;
+
+    for (const player of state.players) {
+      const hpRatio = player.maxHp > 0 ? player.hp / player.maxHp : 0;
+      const hpPercent = Math.round(hpRatio * 100);
+      const hpBand = hpRatio > 0.5 ? "g" : hpRatio > 0.25 ? "o" : "r";
+      const xpPercent = player.experienceToNextLevel > 0
+        ? Math.round((player.experience / player.experienceToNextLevel) * 100)
+        : 0;
+      signature += `|${player.name}:${player.character.name}:${player.color}:${player.materials}:${player.level}` +
+        `:${Math.round(player.experience)}:${Math.round(player.experienceToNextLevel)}:${xpPercent}` +
+        `:${formatRoundedHp(player.hp)}:${formatRoundedHp(player.maxHp)}:${hpPercent}:${hpBand}`;
+    }
+
+    return signature;
+  }
 
   function update(state: ArenaSurvivorState | null, room: RoomSnapshot | null = null): void {
+    const runningSignature =
+      state && state.result.outcome === "running" ? buildRunningSignature(state, room) : null;
+
+    if (runningSignature !== null && runningSignature === lastRunningSignature) {
+      return;
+    }
+
+    lastRunningSignature = runningSignature;
     const en = room?.language === "en";
     const obsidianRelay = state?.visualTheme === "obsidian-relay";
     const frostfireSaga = state?.visualTheme === "frostfire-saga";
@@ -555,7 +610,7 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
           valueElement.textContent = value;
           const labelElement = document.createElement("span");
           labelElement.style.fontSize = "10px";
-          labelElement.style.color = tokens().color.textSoft;
+          labelElement.style.color = hudInk.textSoft;
           labelElement.textContent = label;
           stat.appendChild(valueElement);
           stat.appendChild(labelElement);
@@ -580,7 +635,7 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
         ];
         if (assets.length === 0) {
           const empty = document.createElement("span");
-          empty.style.color = tokens().color.muted;
+          empty.style.color = hudInk.muted;
           empty.style.fontSize = "12px";
           empty.textContent = en ? "No equipment" : "Keine Ausrüstung";
           assetRow.appendChild(empty);
@@ -606,7 +661,7 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
 
         const statsLine = document.createElement("div");
         statsLine.style.fontSize = "12px";
-        statsLine.style.color = tokens().color.muted;
+        statsLine.style.color = hudInk.muted;
         statsLine.textContent = `${formatPlayerStats(player)}  |  M ${player.runSummary.totalMaterialsCollected}`;
 
         content.appendChild(title);

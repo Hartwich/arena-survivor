@@ -102,4 +102,17 @@ export const arenaSurvivorManifest = {
     }
   },
   hostChrome: { joinOverlayWhenFinished: false },
+  broadcast: {
+    // The server ticks every 16 ms. With the platform default of 33 ms every
+    // second tick fell just short of the gap, so the host got states at an
+    // uneven 32/48 ms rhythm (~21-31 Hz). 24 ms lets exactly every second tick
+    // through: a steady ~31 Hz and 16 ms less input-to-screen delay on average.
+    hostStateIntervalMs: 24,
+    // Phones only show their own HP/XP/material while a wave runs; 10 Hz is
+    // plenty and keeps the Wi-Fi free for the stick input going the other way.
+    controllerStateIntervalMs: 100,
+    // A stick input only sets a direction; the player moves in the next tick,
+    // which broadcasts anyway. No extra full-state build per input.
+    deferInputBroadcastToTick: true
+  },
 } as const satisfies GameManifest;

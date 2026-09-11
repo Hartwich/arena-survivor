@@ -19,7 +19,9 @@ import {
   resolveArenaSurvivorWeaponCarrySpriteKey
 } from "./arenaSurvivorAssets.js";
 import { arenaSurvivorVisualConfig } from "./arenaSurvivorVisualConfig.js";
-import { tokens } from "./platformTheme.js";
+
+/** Grey for a downed player's fallback token on the dark arena floor. */
+const DOWNED_PLAYER_COLOR = "#94a3b8";
 
 function toColor(color: string): number {
   return Phaser.Display.Color.HexStringToColor(color).color;
@@ -102,13 +104,27 @@ function resolvePlayerPulseScale(playerId: string, elapsedMs: number): number {
     arenaSurvivorVisualConfig.player.pulseAmplitude;
 }
 
-function resolveEnemyPulseScale(enemyId: string, elapsedMs: number): number {
-  const phase = resolvePhaseOffset(enemyId);
-  const speedOffset =
-    ((hashSeed(`${enemyId}:speed`) % 1000) / 1000 - 0.5) * 2 * arenaSurvivorVisualConfig.enemy.pulseSpeedVarianceMs;
-  const pulseSpeedMs = Math.max(180, arenaSurvivorVisualConfig.enemy.pulseSpeedMs + speedOffset);
+/** Per-enemy pulse phase and speed; hashing the id twice per enemy per frame added up. */
+const enemyPulseParams = new Map<string, { phase: number; speedMs: number }>();
 
-  return 1 + Math.sin(elapsedMs / pulseSpeedMs + phase) * arenaSurvivorVisualConfig.enemy.pulseAmplitude;
+function resolveEnemyPulseScale(enemyId: string, elapsedMs: number): number {
+  let params = enemyPulseParams.get(enemyId);
+
+  if (!params) {
+    if (enemyPulseParams.size > 4096) {
+      enemyPulseParams.clear();
+    }
+
+    const speedOffset =
+      ((hashSeed(`${enemyId}:speed`) % 1000) / 1000 - 0.5) * 2 * arenaSurvivorVisualConfig.enemy.pulseSpeedVarianceMs;
+    params = {
+      phase: resolvePhaseOffset(enemyId),
+      speedMs: Math.max(180, arenaSurvivorVisualConfig.enemy.pulseSpeedMs + speedOffset)
+    };
+    enemyPulseParams.set(enemyId, params);
+  }
+
+  return 1 + Math.sin(elapsedMs / params.speedMs + params.phase) * arenaSurvivorVisualConfig.enemy.pulseAmplitude;
 }
 
 function resolvePlayerVisualPosition(
@@ -126,34 +142,54 @@ function resolvePlayerVisualPosition(
   };
 }
 
+interface NearestEnemy {
+  x: number;
+  y: number;
+}
+
+/**
+ * The closest living enemy per player, found once per frame.
+ *
+ * Every weapon of every player and the marshmallow faces each used to scan the
+ * whole enemy list on their own, up to ~30 scans per frame.
+ */
+function resolveNearestEnemyByPlayer(state: ArenaSurvivorState): Map<string, NearestEnemy | null> {
+  const nearestByPlayer = new Map<string, NearestEnemy | null>();
+
+  for (const player of state.players) {
+    let nearest: NearestEnemy | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const enemy of state.enemies) {
+      if (!enemy.alive) {
+        continue;
+      }
+
+      const deltaX = enemy.x - player.x;
+      const deltaY = enemy.y - player.y;
+      const distance = deltaX * deltaX + deltaY * deltaY;
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = enemy;
+      }
+    }
+
+    nearestByPlayer.set(player.playerId, nearest);
+  }
+
+  return nearestByPlayer;
+}
+
 function resolveWeaponAimAngle(
   player: ArenaSurvivorState["players"][number],
-  state: ArenaSurvivorState,
+  nearestEnemy: NearestEnemy | null,
   originX: number,
   originY: number,
   fallbackAngle: number
 ): number {
-  const livingEnemies = state.enemies.filter((enemy) => enemy.alive);
-
-  if (livingEnemies.length > 0) {
-    const closestEnemy = livingEnemies.reduce((closest, enemy) => {
-      const closestDistance = Phaser.Math.Distance.Squared(
-        originX,
-        originY,
-        closest.x,
-        closest.y
-      );
-      const nextDistance = Phaser.Math.Distance.Squared(
-        originX,
-        originY,
-        enemy.x,
-        enemy.y
-      );
-
-      return nextDistance < closestDistance ? enemy : closest;
-    });
-
-    return Math.atan2(closestEnemy.y - originY, closestEnemy.x - originX);
+  if (nearestEnemy) {
+    return Math.atan2(nearestEnemy.y - originY, nearestEnemy.x - originX);
   }
 
   if (Math.hypot(player.vx, player.vy) > 8) {
@@ -231,7 +267,8 @@ function resolveWeaponPose(
   slotIndex: number,
   orbitDistance: number,
   playerPosition: { x: number; y: number },
-  weaponDisplaySize: number
+  weaponDisplaySize: number,
+  nearestEnemy: NearestEnemy | null
 ): { x: number; y: number; aimAngle: number } {
   const equippedWeapon = player.loadout.weapons[slotIndex];
   const weaponState = player.weaponRuntimeStates[slotIndex];
@@ -253,7 +290,7 @@ function resolveWeaponPose(
       ? isActiveMeleeSwing
         ? meleeAimAngle + meleeSwingPose.angleOffset
         : slotTransform.angleRad
-      : resolveWeaponAimAngle(player, state, baseX, baseY, slotTransform.angleRad);
+      : resolveWeaponAimAngle(player, nearestEnemy, baseX, baseY, slotTransform.angleRad);
   const meleeLungeDistance =
     equippedWeapon?.category === "melee"
       ? Math.max(
@@ -509,7 +546,14 @@ export interface ArenaSurvivorSpriteLayer {
   marshmallowPlayerRigs: Map<string, ArenaSurvivorMarshmallowPlayerRig>;
   enemySprites: Map<string, Phaser.GameObjects.Image>;
   pickupSprites: Map<string, Phaser.GameObjects.Image>;
+  projectileSprites: Map<string, Phaser.GameObjects.Image>;
   weaponSprites: Map<string, Phaser.GameObjects.Image>;
+  /**
+   * Hidden images waiting for reuse. Enemies, pickups and projectiles come and
+   * go by the dozen per second; recycling their images instead of destroying
+   * and recreating them keeps garbage collection out of the frame budget.
+   */
+  imagePool: Phaser.GameObjects.Image[];
 }
 
 interface ArenaSurvivorMarshmallowPlayerRig {
@@ -603,8 +647,162 @@ export function createArenaSurvivorSpriteLayer(): ArenaSurvivorSpriteLayer {
     marshmallowPlayerRigs: new Map(),
     enemySprites: new Map(),
     pickupSprites: new Map(),
-    weaponSprites: new Map()
+    projectileSprites: new Map(),
+    weaponSprites: new Map(),
+    imagePool: []
   };
+}
+
+function acquirePooledImage(
+  scene: Phaser.Scene,
+  layer: ArenaSurvivorSpriteLayer,
+  textureKey: string,
+  depth: number
+): Phaser.GameObjects.Image {
+  const image = layer.imagePool.pop() ?? scene.add.image(0, 0, textureKey);
+
+  if (image.texture.key !== textureKey) {
+    image.setTexture(textureKey);
+  }
+
+  image.setOrigin(0.5);
+  image.setDepth(depth);
+  image.setRotation(0);
+  image.setFlip(false, false);
+  image.setAlpha(1);
+  image.setVisible(true);
+  return image;
+}
+
+function releasePooledImages(
+  layer: ArenaSurvivorSpriteLayer,
+  sprites: Map<string, Phaser.GameObjects.Image>,
+  activeIds: ReadonlySet<string>
+): void {
+  for (const [id, sprite] of sprites) {
+    if (!activeIds.has(id)) {
+      sprite.setVisible(false);
+      layer.imagePool.push(sprite);
+      sprites.delete(id);
+    }
+  }
+}
+
+/** Hides everything the layer drew, e.g. while no round state is available. */
+export function hideArenaSurvivorSpriteLayer(layer: ArenaSurvivorSpriteLayer): void {
+  for (const sprite of layer.playerSprites.values()) {
+    sprite.setVisible(false);
+  }
+  for (const rig of layer.marshmallowPlayerRigs.values()) {
+    rig.container.setVisible(false);
+  }
+  for (const sprite of layer.weaponSprites.values()) {
+    sprite.setVisible(false);
+  }
+  releasePooledImages(layer, layer.enemySprites, new Set());
+  releasePooledImages(layer, layer.pickupSprites, new Set());
+  releasePooledImages(layer, layer.projectileSprites, new Set());
+}
+
+export function destroyArenaSurvivorSpriteLayer(layer: ArenaSurvivorSpriteLayer): void {
+  for (const sprites of [
+    layer.playerSprites,
+    layer.enemySprites,
+    layer.pickupSprites,
+    layer.projectileSprites,
+    layer.weaponSprites
+  ]) {
+    for (const sprite of sprites.values()) {
+      sprite.destroy();
+    }
+    sprites.clear();
+  }
+
+  for (const rig of layer.marshmallowPlayerRigs.values()) {
+    rig.container.destroy(true);
+  }
+  layer.marshmallowPlayerRigs.clear();
+
+  for (const sprite of layer.imagePool) {
+    sprite.destroy();
+  }
+  layer.imagePool.length = 0;
+}
+
+/** Reference radius projectile textures are drawn at; sprites scale from it. */
+const PROJECTILE_TEXTURE_RADIUS = 16;
+/** Glows reach 2.5x the radius; the texture leaves room for them and the line caps. */
+const PROJECTILE_TEXTURE_SIZE = Math.ceil(PROJECTILE_TEXTURE_RADIUS * 2.6 * 2) + 4;
+/** Shapes that point along the flight direction and rotate with it. */
+const DIRECTIONAL_PROJECTILES = new Set(["hunter-arrow", "smg-pellet", "spark-bolt"]);
+
+/**
+ * Texture for one projectile look, drawn once with the same vector routine the
+ * graphics layer used every frame before.
+ *
+ * Projectiles are the most numerous objects on screen. As vector paths they
+ * were rebuilt into the entity graphics on every state and replayed by the
+ * Canvas renderer on every frame, glows and all; as images they are one
+ * `drawImage` each.
+ */
+function ensureProjectileTexture(
+  scene: Phaser.Scene,
+  projectile: ArenaSurvivorState["projectiles"][number]
+): string {
+  const key = `arena-survivor-projectile-${projectile.definitionId}-${projectile.ownerKind}`;
+
+  if (scene.textures.exists(key)) {
+    return key;
+  }
+
+  const graphics = scene.make.graphics({}, false);
+  const center = PROJECTILE_TEXTURE_SIZE / 2;
+  drawArenaSurvivorProjectile(
+    graphics,
+    { ...projectile, vx: 1, vy: 0 },
+    center,
+    center,
+    PROJECTILE_TEXTURE_RADIUS
+  );
+  graphics.generateTexture(key, PROJECTILE_TEXTURE_SIZE, PROJECTILE_TEXTURE_SIZE);
+  graphics.destroy();
+  return key;
+}
+
+function syncProjectileSprites(
+  scene: Phaser.Scene,
+  layer: ArenaSurvivorSpriteLayer,
+  state: ArenaSurvivorState
+): void {
+  const activeIds = new Set<string>();
+
+  for (const projectile of state.projectiles) {
+    if (!projectile.alive) {
+      continue;
+    }
+
+    const textureKey = ensureProjectileTexture(scene, projectile);
+    let sprite = layer.projectileSprites.get(projectile.id);
+
+    if (!sprite) {
+      sprite = acquirePooledImage(scene, layer, textureKey, 1);
+      layer.projectileSprites.set(projectile.id, sprite);
+    } else if (sprite.texture.key !== textureKey) {
+      sprite.setTexture(textureKey);
+    }
+
+    const scale = Math.max(2.5, projectile.radius) / PROJECTILE_TEXTURE_RADIUS;
+    sprite.setPosition(projectile.x, projectile.y);
+    sprite.setScale(scale);
+    sprite.setRotation(
+      DIRECTIONAL_PROJECTILES.has(projectile.definitionId)
+        ? resolveProjectileAngle(projectile.vx, projectile.vy)
+        : 0
+    );
+    activeIds.add(projectile.id);
+  }
+
+  releasePooledImages(layer, layer.projectileSprites, activeIds);
 }
 
 function createMarshmallowPlayerRig(
@@ -685,7 +883,8 @@ function updateMarshmallowPlayerRig(
   player: ArenaSurvivorPlayerState,
   state: ArenaSurvivorState,
   torsoKey: string,
-  playerPosition: { x: number; y: number; pulseScale: number }
+  playerPosition: { x: number; y: number; pulseScale: number },
+  nearestEnemy: NearestEnemy | null
 ): void {
   const displaySize =
     resolvePlayerDisplayRadius(player.radius) *
@@ -741,20 +940,8 @@ function updateMarshmallowPlayerRig(
   rig.leftHand.setDisplaySize(58, 46).setRotation(-0.2 + armSwing * 0.22);
   rig.rightHand.setDisplaySize(58, 46).setRotation(0.2 + armSwing * 0.22);
 
-  let targetX = player.x + Math.cos(player.facingAngleRad) * 100;
-  let targetY = player.y + Math.sin(player.facingAngleRad) * 100;
-  let targetDistance = Number.POSITIVE_INFINITY;
-  for (const enemy of state.enemies) {
-    if (!enemy.alive) {
-      continue;
-    }
-    const distance = Phaser.Math.Distance.Squared(player.x, player.y, enemy.x, enemy.y);
-    if (distance < targetDistance) {
-      targetDistance = distance;
-      targetX = enemy.x;
-      targetY = enemy.y;
-    }
-  }
+  const targetX = nearestEnemy?.x ?? player.x + Math.cos(player.facingAngleRad) * 100;
+  const targetY = nearestEnemy?.y ?? player.y + Math.sin(player.facingAngleRad) * 100;
   const targetAngle = Math.atan2(targetY - player.y, targetX - player.x);
   drawMarshmallowFace(
     rig.face,
@@ -878,19 +1065,8 @@ export function drawArenaSurvivorEntities(
     );
   }
 
-  for (const projectile of state.projectiles) {
-    if (!projectile.alive) {
-      continue;
-    }
-
-    drawArenaSurvivorProjectile(
-      graphics,
-      projectile,
-      projectile.x,
-      projectile.y,
-      Math.max(2.5, projectile.radius)
-    );
-  }
+  // Projectiles are pooled images now, see `syncProjectileSprites`.
+  const nearestEnemyByPlayer = resolveNearestEnemyByPlayer(state);
 
   for (const indicator of state.spawnIndicators) {
     drawSpawnIndicator(graphics, indicator, state.elapsedMs);
@@ -929,7 +1105,7 @@ export function drawArenaSurvivorEntities(
         const weaponPose = resolveWeaponPose(player, state, slotIndex, slotDistance, {
           x: playerX,
           y: playerY
-        }, weaponDisplaySize);
+        }, weaponDisplaySize, nearestEnemyByPlayer.get(player.playerId) ?? null);
         const fallbackTipLength = Math.max(8, weaponDisplaySize * 0.4);
         const fallbackHalfWidth = Math.max(5, weaponDisplaySize * 0.25);
         graphics.fillStyle(resolveWeaponColor(equippedWeapon.category), 0.95);
@@ -945,7 +1121,9 @@ export function drawArenaSurvivorEntities(
     }
 
     if (!scene.textures.exists(resolveArenaSurvivorPlayerSpriteKey(player.character.id, state.visualTheme))) {
-      const playerColor = player.alive ? toColor(player.color) : toColor(tokens().color.muted);
+      // Fallback token on the arena floor — artwork, so a fixed grey rather
+      // than the room's muted ink, which is dark on a dark stage in light mode.
+      const playerColor = player.alive ? toColor(player.color) : toColor(DOWNED_PLAYER_COLOR);
 
       graphics.fillStyle(0x020617, 0.35);
       graphics.fillEllipse(playerX, playerY + playerDisplayRadius * 0.92, playerDisplayRadius * 1.45, playerDisplayRadius * 0.46);
@@ -992,6 +1170,9 @@ export function syncArenaSurvivorSpriteLayer(
 ): void {
   void meta;
   const activePlayerIds = new Set(state.players.map((player) => player.playerId));
+  const nearestEnemyByPlayer = resolveNearestEnemyByPlayer(state);
+
+  syncProjectileSprites(scene, layer, state);
 
   for (const player of state.players) {
     const spriteKey = resolveArenaSurvivorPlayerSpriteKey(player.character.id, state.visualTheme);
@@ -1008,10 +1189,28 @@ export function syncArenaSurvivorSpriteLayer(
         ? arenaSurvivorMarshmallowRigKeys.helmet
         : resolveArenaSurvivorMarshmallowHeadbandKey(player.color);
       if (!rig) {
+        // The rig's hands, feet and headgear are created once; building it
+        // before the theme's textures are in would leave them blank for good.
+        if (
+          !scene.textures.exists(spriteKey) ||
+          !scene.textures.exists(headgearKey) ||
+          !scene.textures.exists(arenaSurvivorMarshmallowRigKeys.hand) ||
+          !scene.textures.exists(arenaSurvivorMarshmallowRigKeys.foot)
+        ) {
+          continue;
+        }
+
         rig = createMarshmallowPlayerRig(scene, spriteKey, headgearKey);
         layer.marshmallowPlayerRigs.set(player.playerId, rig);
       }
-      updateMarshmallowPlayerRig(rig, player, state, spriteKey, playerPosition);
+      updateMarshmallowPlayerRig(
+        rig,
+        player,
+        state,
+        spriteKey,
+        playerPosition,
+        nearestEnemyByPlayer.get(player.playerId) ?? null
+      );
       continue;
     }
 
@@ -1073,9 +1272,7 @@ export function syncArenaSurvivorSpriteLayer(
     let pickupSprite = layer.pickupSprites.get(pickup.id);
 
     if (!pickupSprite) {
-      pickupSprite = scene.add.image(0, 0, spriteKey);
-      pickupSprite.setDepth(8);
-      pickupSprite.setOrigin(0.5);
+      pickupSprite = acquirePooledImage(scene, layer, spriteKey, 8);
       layer.pickupSprites.set(pickup.id, pickupSprite);
     } else if (pickupSprite.texture.key !== spriteKey) {
       pickupSprite.setTexture(spriteKey);
@@ -1090,12 +1287,7 @@ export function syncArenaSurvivorSpriteLayer(
     activePickupIds.add(pickup.id);
   }
 
-  for (const [pickupId, pickupSprite] of layer.pickupSprites) {
-    if (!activePickupIds.has(pickupId)) {
-      pickupSprite.destroy();
-      layer.pickupSprites.delete(pickupId);
-    }
-  }
+  releasePooledImages(layer, layer.pickupSprites, activePickupIds);
 
   for (const enemy of state.enemies) {
     if (!enemy.alive) {
@@ -1111,9 +1303,7 @@ export function syncArenaSurvivorSpriteLayer(
     let enemySprite = layer.enemySprites.get(enemy.id);
 
     if (!enemySprite) {
-      enemySprite = scene.add.image(0, 0, spriteKey);
-      enemySprite.setDepth(9);
-      enemySprite.setOrigin(0.5);
+      enemySprite = acquirePooledImage(scene, layer, spriteKey, 9);
       layer.enemySprites.set(enemy.id, enemySprite);
     } else if (enemySprite.texture.key !== spriteKey) {
       enemySprite.setTexture(spriteKey);
@@ -1170,7 +1360,8 @@ export function syncArenaSurvivorSpriteLayer(
         slotIndex,
         orbitDistance,
         playerPosition,
-        displaySize
+        displaySize,
+        nearestEnemyByPlayer.get(player.playerId) ?? null
       );
       let nextWeaponSprite = weaponSprite;
 
@@ -1200,12 +1391,7 @@ export function syncArenaSurvivorSpriteLayer(
     }
   }
 
-  for (const [enemyId, enemySprite] of layer.enemySprites) {
-    if (!activeEnemyIds.has(enemyId)) {
-      enemySprite.destroy();
-      layer.enemySprites.delete(enemyId);
-    }
-  }
+  releasePooledImages(layer, layer.enemySprites, activeEnemyIds);
 
   for (const [weaponId, weaponSprite] of layer.weaponSprites) {
     if (!activeWeaponKeys.has(weaponId)) {

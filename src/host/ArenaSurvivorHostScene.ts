@@ -1,18 +1,33 @@
 import Phaser from "phaser";
 import type { ArenaSurvivorState } from "../protocol.js";
 import {
+  arenaSurvivorDefaultVisualTheme,
+  isArenaSurvivorVisualTheme
+} from "../visualThemes.js";
+import { arenaSurvivorRoomSettingKeys } from "../server/arenaSurvivorConfig.js";
+import {
   createArenaSurvivorSpriteLayer,
   applyArenaSurvivorCamera,
+  destroyArenaSurvivorSpriteLayer,
   drawArenaSurvivorBackground,
   drawArenaSurvivorEntities,
   drawArenaSurvivorPlayerHealthBars,
+  hideArenaSurvivorSpriteLayer,
   resolveArenaSurvivorRenderMeta,
   syncArenaSurvivorSpriteLayer
 } from "./ArenaSurvivorRenderer.js";
 import { createArenaHud } from "./hud/ArenaHud.js";
-import { loadArenaSurvivorAssets, resolveArenaSurvivorBackgroundKey } from "./arenaSurvivorAssets.js";
+import {
+  ensureArenaSurvivorThemeAssets,
+  loadArenaSurvivorAssets,
+  resolveArenaSurvivorBackgroundKey
+} from "./arenaSurvivorAssets.js";
+import { createArenaSurvivorMotion } from "./arenaSurvivorMotion.js";
 import { renderRoundScreens } from "./roundScreens.js";
-import { bindPlatformTheme, tokens } from "./platformTheme.js";
+import { bindPlatformTheme } from "./platformTheme.js";
+
+/** Matches the dark shade the arena artwork is composited against. */
+const ARENA_STAGE_COLOR = "#120a06";
 
 interface HostClientLike {
   subscribe(callback: (state: HostAppStateLike) => void): () => void;
@@ -23,9 +38,31 @@ interface HostClientLike {
 interface HostAppStateLike {
   game?: {
     roundNumber?: number;
+    phase?: string;
     state?: unknown;
   } | null;
-  room?: Parameters<ReturnType<typeof createArenaHud>["update"]>[1];
+  room?: Parameters<ReturnType<typeof createArenaHud>["update"]>[1] & {
+    selectedGameSettings?: Record<string, unknown>;
+  };
+}
+
+/** The theme the room has selected right now, read without keeping a subscription. */
+function readSelectedVisualTheme(client: HostClientLike | undefined) {
+  let theme = arenaSurvivorDefaultVisualTheme;
+
+  if (!client) {
+    return theme;
+  }
+
+  const unsubscribe = client.subscribe((state) => {
+    const selected = state.room?.selectedGameSettings?.[arenaSurvivorRoomSettingKeys.visualTheme];
+
+    if (isArenaSurvivorVisualTheme(selected)) {
+      theme = selected;
+    }
+  });
+  unsubscribe();
+  return theme;
 }
 
 export class ArenaSurvivorHostScene extends Phaser.Scene {
@@ -37,15 +74,27 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
   private playerHealthGraphics?: Phaser.GameObjects.Graphics;
   private hud?: ReturnType<typeof createArenaHud>;
   private spriteLayer = createArenaSurvivorSpriteLayer();
+  private motion = createArenaSurvivorMotion();
   private lastRoundNumber: number | null = null;
   private lastViewportKey = "";
+  /** True while the game's own intro screen covers the arena. */
+  private roundScreenActive = false;
+  /** A state arrived (or textures finished loading) that has not been drawn yet. */
+  private renderPending = false;
 
   constructor() {
     super("ArenaSurvivorHostScene");
   }
 
   preload(): void {
-    loadArenaSurvivorAssets(this);
+    loadArenaSurvivorAssets(
+      this,
+      readSelectedVisualTheme(this.registry.get("hostClient") as HostClientLike | undefined),
+      // Downscaled copies land a moment after loading; redraw when they do.
+      () => {
+        this.renderPending = true;
+      }
+    );
   }
 
   create(): void {
@@ -58,7 +107,9 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       canvasContext.imageSmoothingQuality = "high";
     }
 
-    this.cameras.main.setBackgroundColor(tokens().color.background);
+    // The stage behind the arena artwork, not a platform surface: the warm
+    // paper of the light theme showed up as bright bands around the arena.
+    this.cameras.main.setBackgroundColor(ARENA_STAGE_COLOR);
     this.arenaBackground = this.add.image(0, 0, resolveArenaSurvivorBackgroundKey()).setOrigin(0, 0);
     this.arenaBackground.setDepth(-50);
     this.arenaBackground.setVisible(false);
@@ -80,9 +131,11 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     this.unsubscribe = client.subscribe((state) => {
       // Intro and result screens belong to this game, not the platform.
       if (renderRoundScreens(this, state)) {
+        this.roundScreenActive = true;
         return;
       }
 
+      this.roundScreenActive = false;
       const gameState = (state.game?.state ?? null) as ArenaSurvivorState | null;
 
       if (!this.arenaGraphics || !this.entityGraphics || !this.playerHealthGraphics || !this.hud) {
@@ -95,60 +148,51 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
         this.arenaGraphics.clear();
         this.entityGraphics.clear();
         this.playerHealthGraphics.clear();
-        for (const playerSprite of this.spriteLayer.playerSprites.values()) {
-          playerSprite.setVisible(false);
-        }
-        for (const rig of this.spriteLayer.marshmallowPlayerRigs.values()) {
-          rig.container.setVisible(false);
-        }
-        for (const enemySprite of this.spriteLayer.enemySprites.values()) {
-          enemySprite.setVisible(false);
-        }
-        for (const pickupSprite of this.spriteLayer.pickupSprites.values()) {
-          pickupSprite.setVisible(false);
-        }
-        for (const weaponSprite of this.spriteLayer.weaponSprites.values()) {
-          weaponSprite.setVisible(false);
-        }
+        hideArenaSurvivorSpriteLayer(this.spriteLayer);
+        this.motion.clear();
+        this.renderPending = false;
         this.lastRoundNumber = null;
         this.lastViewportKey = "";
         this.hud.update(null, state.room);
         return;
       }
 
+      const texturesReady = ensureArenaSurvivorThemeAssets(this, gameState.visualTheme, () => {
+        // Sprites replace the shape fallbacks as soon as the theme is in.
+        this.syncBackground(this.motion.base);
+        this.renderPending = true;
+      });
+      const isNewState = gameState !== this.motion.base;
+      this.motion.accept(
+        gameState,
+        state.game?.phase === "playing" && gameState.result.outcome === "running",
+        performance.now()
+      );
+
+      if (isNewState) {
+        this.renderPending = true;
+      }
+
       const viewportKey = `${gameState.arenaWidth}x${gameState.arenaHeight}:${gameState.visualTheme}`;
       const shouldResetArena =
         this.lastRoundNumber !== state.game?.roundNumber || this.lastViewportKey !== viewportKey;
-      const meta = resolveArenaSurvivorRenderMeta(this, gameState);
 
-      if (this.arenaBackground) {
-        const backgroundKey = resolveArenaSurvivorBackgroundKey(gameState.visualTheme);
-
-        if (this.arenaBackground.texture.key !== backgroundKey) {
-          this.arenaBackground.setTexture(backgroundKey);
-        }
-
-        this.arenaBackground.setVisible(true);
-        this.arenaBackground.setPosition(0, 0);
-        this.arenaBackground.setDisplaySize(gameState.arenaWidth, gameState.arenaHeight);
+      if (shouldResetArena || !texturesReady) {
+        this.syncBackground(gameState);
       }
-      if (this.arenaBackgroundShade) {
-        const useShade = gameState.visualTheme === "marshmallow-mayhem";
-        this.arenaBackgroundShade.setVisible(useShade);
-        this.arenaBackgroundShade.setPosition(0, 0);
-        this.arenaBackgroundShade.setSize(gameState.arenaWidth, gameState.arenaHeight);
-      }
-      applyArenaSurvivorCamera(this, meta);
 
       if (shouldResetArena) {
-        drawArenaSurvivorBackground(this, this.arenaGraphics, gameState, meta);
+        drawArenaSurvivorBackground(
+          this,
+          this.arenaGraphics,
+          gameState,
+          resolveArenaSurvivorRenderMeta(this, gameState)
+        );
         this.lastRoundNumber = state.game?.roundNumber ?? null;
         this.lastViewportKey = viewportKey;
       }
 
-      drawArenaSurvivorEntities(this, this.entityGraphics, gameState, meta);
-      drawArenaSurvivorPlayerHealthBars(this.playerHealthGraphics, gameState);
-      syncArenaSurvivorSpriteLayer(this, this.spriteLayer, gameState, meta);
+      // The HUD follows the server state; positions are drawn per frame.
       this.hud.update(gameState, state.room);
     });
 
@@ -165,30 +209,83 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       this.entityGraphics = undefined;
       this.playerHealthGraphics?.destroy();
       this.playerHealthGraphics = undefined;
-      for (const enemySprite of this.spriteLayer.enemySprites.values()) {
-        enemySprite.destroy();
-      }
-      this.spriteLayer.enemySprites.clear();
-      for (const pickupSprite of this.spriteLayer.pickupSprites.values()) {
-        pickupSprite.destroy();
-      }
-      this.spriteLayer.pickupSprites.clear();
-      for (const playerSprite of this.spriteLayer.playerSprites.values()) {
-        playerSprite.destroy();
-      }
-      this.spriteLayer.playerSprites.clear();
-      for (const rig of this.spriteLayer.marshmallowPlayerRigs.values()) {
-        rig.container.destroy(true);
-      }
-      this.spriteLayer.marshmallowPlayerRigs.clear();
-      for (const weaponSprite of this.spriteLayer.weaponSprites.values()) {
-        weaponSprite.destroy();
-      }
-      this.spriteLayer.weaponSprites.clear();
+      destroyArenaSurvivorSpriteLayer(this.spriteLayer);
+      this.motion.clear();
+      this.renderPending = false;
+      this.roundScreenActive = false;
       this.hud?.destroy();
       this.hud = undefined;
       this.lastRoundNumber = null;
       this.lastViewportKey = "";
     });
+  }
+
+  /**
+   * Draws the arena every frame from the smoothed copy of the latest state.
+   *
+   * Before, the arena was redrawn only when a server state arrived, so motion
+   * advanced in ~31 Hz steps regardless of the display rate. While the wave is
+   * not running nothing moves, and the arena is only redrawn when something
+   * changed.
+   */
+  update(): void {
+    if (
+      this.roundScreenActive ||
+      !this.entityGraphics ||
+      !this.playerHealthGraphics
+    ) {
+      return;
+    }
+
+    const nowMs = performance.now();
+    const base = this.motion.base;
+
+    if (!base) {
+      return;
+    }
+
+    if (!this.renderPending && !this.motion.live) {
+      return;
+    }
+
+    if (!this.motion.advance(nowMs) || !this.motion.view) {
+      return;
+    }
+
+    this.renderPending = false;
+    const view = this.motion.view;
+    const meta = resolveArenaSurvivorRenderMeta(this, view);
+    applyArenaSurvivorCamera(this, meta);
+    drawArenaSurvivorEntities(this, this.entityGraphics, view, meta);
+    drawArenaSurvivorPlayerHealthBars(this.playerHealthGraphics, view);
+    syncArenaSurvivorSpriteLayer(this, this.spriteLayer, view, meta);
+  }
+
+  private syncBackground(gameState: ArenaSurvivorState | null): void {
+    if (!gameState) {
+      return;
+    }
+
+    if (this.arenaBackground) {
+      const backgroundKey = resolveArenaSurvivorBackgroundKey(gameState.visualTheme);
+      // A background still loading would show Phaser's "missing" texture
+      // stretched over the arena; the dark stage colour is the better wait.
+      const backgroundReady = this.textures.exists(backgroundKey);
+
+      if (backgroundReady && this.arenaBackground.texture.key !== backgroundKey) {
+        this.arenaBackground.setTexture(backgroundKey);
+      }
+
+      this.arenaBackground.setVisible(backgroundReady);
+      this.arenaBackground.setPosition(0, 0);
+      this.arenaBackground.setDisplaySize(gameState.arenaWidth, gameState.arenaHeight);
+    }
+
+    if (this.arenaBackgroundShade) {
+      const useShade = gameState.visualTheme === "marshmallow-mayhem";
+      this.arenaBackgroundShade.setVisible(useShade);
+      this.arenaBackgroundShade.setPosition(0, 0);
+      this.arenaBackgroundShade.setSize(gameState.arenaWidth, gameState.arenaHeight);
+    }
   }
 }
