@@ -61,6 +61,8 @@ interface ArenaSurvivorModernShopLayoutModel {
   language?: SupportedLanguage;
   disabled: boolean;
   accentColor?: string;
+  shopMode?: "regular" | "level_up";
+  levelUpChoicesRemaining?: number;
   waveNumber: number;
   materials: number;
   ready?: ReadyLayoutModel;
@@ -313,6 +315,8 @@ function buildArenaSurvivorShopModel(
             : "Bereitmeldung abgeschlossen. Die naechste Welle startet gleich.",
     disabled: false,
     accentColor: player.color,
+    shopMode: player.shop.mode,
+    levelUpChoicesRemaining: choosingLevelBonus ? player.pendingLevelUpChoices : undefined,
     waveNumber: state.waveNumber,
     materials: player.materials,
     ready: context.onSetReady && !choosingLevelBonus
