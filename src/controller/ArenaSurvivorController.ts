@@ -531,10 +531,10 @@ function buildSurvivalPauseModel(context: ControllerGameRenderContext, state: Ar
       { ...(loot ? enrichArenaSurvivorShopOffers([loot], state.visualTheme)[0] : {}), id: `${reward.id}:take`,
         kind: loot?.kind ?? "upgrade", title: loot ? `${en ? "Keep" : "Behalten"}: ${loot.title}` : (en ? "Keep Evolution Core" : "Evolution Core behalten"),
         description: loot?.description ?? (en ? "One personal core for the Forge." : "Ein eigener Core fuer die Forge."),
-        iconPath: loot ? resolveArenaSurvivorShopIconPath("weapon", loot.weaponId!, state.visualTheme) : "/arena-survivor/themes/frostfire-saga/upgrades/core.svg",
+        iconPath: loot ? resolveArenaSurvivorShopIconPath("weapon", loot.weaponId!, state.visualTheme) : "/arena-survivor/themes/frostfire-saga/upgrades/core.png",
         targetLevel: loot?.targetLevel ?? 1, cost: 0, affordable: true, purchased: false },
       { id: `${reward.id}:salvage`, kind: "upgrade", title: en ? `Salvage: +${reward.salvageGold} gold` : `Verwerten: +${reward.salvageGold} Gold`,
-        description: en ? "Receive gold instead of this reward." : "Erhalte Gold anstelle dieses Fundes.", iconPath: "/arena-survivor/themes/frostfire-saga/upgrades/gold.svg", targetLevel: 1, cost: 0, affordable: true, purchased: false }
+        description: en ? "Receive gold instead of this reward." : "Erhalte Gold anstelle dieses Fundes.", iconPath: "/arena-survivor/themes/frostfire-saga/pickups/material.png", targetLevel: 1, cost: 0, affordable: true, purchased: false }
     ] : [];
   }
   if (s.pause === "forge" || s.pause === "victory") {
