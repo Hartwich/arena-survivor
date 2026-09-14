@@ -1470,8 +1470,14 @@ export function syncArenaSurvivorSpriteLayer(
         equippedWeapon.category === "ranged" &&
         Math.cos(weaponPose.aimAngle) < 0;
       nextWeaponSprite.setFlipY(mirrorRangedWeapon);
+      // The bow carry SVGs already contain their own -90° artwork rotation.
+      // Applying the generic weapon offset here rotated the bow a second time,
+      // making its limbs and arrow point across the actual firing direction.
+      const weaponAlreadyHasDirectionalBasis = equippedWeapon.weaponId === "hunter-bow";
       nextWeaponSprite.setRotation(
-        mirrorRangedWeapon
+        weaponAlreadyHasDirectionalBasis
+          ? weaponPose.aimAngle
+          : mirrorRangedWeapon
           ? weaponPose.aimAngle - Math.PI / 2
           : weaponPose.aimAngle + Math.PI / 2
       );

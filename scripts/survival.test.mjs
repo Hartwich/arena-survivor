@@ -14,6 +14,16 @@ function setup(mode = 'survival', count = 2) {
   return { state, context };
 }
 const input = (type, playerId = 'p0', extra = {}) => ({type, playerId, sentAt:0, ...extra});
+test('A simultaneous Survival wipe transitions to a visible defeated result', () => {
+  const { state: initial, context } = setup();
+  const state = structuredClone(initial);
+  state.survival.participantIds = context.players.map(player => player.id);
+  state.players.forEach(player => { player.alive = false; player.hp = 0; });
+  const ended = game.tick(state, 16, context);
+  assert.equal(ended.phase, 'locked');
+  assert.equal(ended.result.outcome, 'defeated');
+  assert.equal(ended.result.title, 'Survival · Game Over');
+});
 function kill(state, definitionId = 'slime-blob') {
   const enemy = createArenaSurvivorEnemy(definitionId, {x:0,y:0}, state.players[0], state.elapsedMs);
   const before = {...state, enemies:[...state.enemies,enemy]};
