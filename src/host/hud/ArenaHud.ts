@@ -411,6 +411,7 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
 
     lastRunningSignature = runningSignature;
     const en = room?.language === "en";
+    metaBar.style.display = state?.survival ? "none" : "grid";
     const obsidianRelay = state?.visualTheme === "obsidian-relay";
     const frostfireSaga = state?.visualTheme === "frostfire-saga";
     const marshmallowMayhem = state?.visualTheme === "marshmallow-mayhem";
@@ -481,11 +482,12 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
             : "rgba(15, 23, 42, 0.84)";
       card.title.textContent = player.name;
       card.title.title = `${player.name} (${player.character.name})`;
-      card.materialBadge.textContent = `M ${player.materials}`;
+      card.materialBadge.textContent = state?.survival ? `M ${player.materials} · ◆ ${player.evolutionCores ?? 0}` : `M ${player.materials}`;
       card.levelBadge.textContent = `${en ? "Lvl." : "Lvl."} ${player.level}`;
       card.xpLabel.textContent = `EXP ${Math.round(player.experience)}/${Math.round(player.experienceToNextLevel)}`;
+      if (card.xpLabel.parentElement) card.xpLabel.parentElement.style.display = state?.survival ? "none" : "block";
       card.xpFill.style.width = `${Math.round(experienceRatio * 100)}%`;
-      card.hpLabel.textContent = `${en ? "HP" : "Leben"} ${formatRoundedHp(player.hp)}/${formatRoundedHp(player.maxHp)}`;
+      card.hpLabel.textContent = state?.survival && !player.alive && player.respawnAtMs !== undefined ? `Respawn ${Math.max(0, Math.ceil((player.respawnAtMs - state.elapsedMs) / 1000))}s` : `${en ? "HP" : "Leben"} ${formatRoundedHp(player.hp)}/${formatRoundedHp(player.maxHp)}`;
       card.hpFill.style.width = `${Math.round(hpRatio * 100)}%`;
       card.hpFill.style.background = hpColor;
     }
@@ -524,12 +526,12 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
         : marshmallowMayhem
           ? "rgba(66, 30, 14, 0.9)"
           : "rgba(15, 23, 42, 0.88)";
-    summaryEyebrow.textContent = defeated
+    summaryEyebrow.textContent = defeated || state.survival
       ? en ? "Run statistics" : "Run-Statistik"
       : en ? "Wave report" : "Wellenbericht";
     summaryEyebrow.style.color = themeAccent;
     summaryTitle.textContent = state.result.title;
-    summaryActions.style.display = defeated ? "grid" : "none";
+    summaryActions.style.display = defeated || state.survival ? "grid" : "none";
     restartButton.textContent = en ? "New run" : "Neuer Run";
     setupButton.textContent = en ? "Back to setup" : "Zurück zum Setup";
     restartButton.style.background = themeAccent;

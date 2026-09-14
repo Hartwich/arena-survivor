@@ -1,3 +1,4 @@
+import { collectDamageEvents, recordDamageEvent } from "./damageEvents.js";
 import { arenaSurvivorConfig } from "../arenaSurvivorConfig.js";
 import { createArenaSurvivorEnemyDrops } from "../factories/createEnemyDrops.js";
 import { resolveArenaSurvivorDifficulty } from "../difficulty/arenaSurvivorDifficulty.js";
@@ -52,6 +53,7 @@ export function applyDamageSystem(
   let nextSeed = state.seed;
   let kills = state.kills;
   let pickups = state.pickups;
+  const damageEvents = collectDamageEvents(state);
   const difficulty = resolveArenaSurvivorDifficulty(
     state.waveNumber,
     state.players.length,
@@ -67,12 +69,13 @@ export function applyDamageSystem(
     }
 
     const appliedDamage = Math.min(enemy.hp, projectile.damage);
+    recordDamageEvent(damageEvents, state.elapsedMs, enemy, appliedDamage);
     const nextEnemyHp = enemy.hp - appliedDamage;
     const owner = playersById.get(projectile.ownerId);
 
     if (owner) {
       const lifeStealAmount =
-        appliedDamage * (Math.max(0, owner.stats.lifeStealPct) / 100);
+        appliedDamage * (Math.max(0, owner.stats.lifeStealPct) / 400);
 
       playersById.set(owner.playerId, {
         ...owner,
@@ -225,6 +228,7 @@ export function applyDamageSystem(
 
   return {
     ...state,
+    damageEvents,
     seed: nextSeed,
     kills,
     players: state.players

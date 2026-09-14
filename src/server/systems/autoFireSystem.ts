@@ -1,3 +1,5 @@
+import { collectDamageEvents, recordDamageEvent } from "./damageEvents.js";
+import { evolvedOrbit } from "../../evolvedOrbit.js";
 import {
   ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD,
   ARENA_SURVIVOR_MELEE_IMPACT_RATIO,
@@ -121,6 +123,7 @@ export function applyAutoFireSystem(
   const nextEnemies = state.enemies.map((enemy) => ({ ...enemy }));
   const nextProjectiles = [...state.projectiles];
   const nextPickups = [...state.pickups];
+  const damageEvents = collectDamageEvents(state);
   const difficulty = resolveArenaSurvivorDifficulty(
     state.waveNumber,
     state.players.length,
@@ -152,15 +155,18 @@ export function applyAutoFireSystem(
       let weaponState = nextWeaponStates[weaponIndex];
       const { definition, levelDefinition } = resolveArenaSurvivorWeaponLevel(
         weaponState.weaponId,
-        weaponState.level
+        weaponState.level,
+        nextPlayer.loadout.weapons.find((weapon) => weapon.weaponInstanceId === weaponState.weaponInstanceId)?.evolved
       );
       const slotTransform = resolveArenaSurvivorWeaponSlotTransform(
         weaponIndex,
         resolveArenaSurvivorWeaponOrbitDistance(nextPlayer.radius)
       );
-      const originX = nextPlayer.x + slotTransform.offsetX;
-      const originY = nextPlayer.y + slotTransform.offsetY;
-      const weaponRange = levelDefinition.range * nextPlayer.stats.weaponRangeMultiplier;
+      const orbiting = definition.category === "melee" && nextPlayer.loadout.weapons.some(w => w.weaponInstanceId === weaponState.weaponInstanceId && w.evolved);
+      const orbit = evolvedOrbit(nextPlayer.x, nextPlayer.y, state.elapsedMs, weaponIndex);
+      const originX = orbiting ? orbit.x : nextPlayer.x + slotTransform.offsetX;
+      const originY = orbiting ? orbit.y : nextPlayer.y + slotTransform.offsetY;
+      const weaponRange = levelDefinition.range * nextPlayer.stats.weaponRangeMultiplier * (state.survival && definition.category === "ranged" ? 0.8 : 1);
 
       weaponState = { ...weaponState, effectiveRange: weaponRange };
       nextWeaponStates[weaponIndex] = weaponState;
@@ -188,11 +194,11 @@ export function applyAutoFireSystem(
       const critScale = levelDefinition.critScale ?? 1;
 
       if (
-        definition.attackPattern === "melee_arc" &&
+        orbiting || (definition.attackPattern === "melee_arc" &&
         weaponState.meleeAttackResolvesAtMs !== null &&
-        weaponState.meleeAttackResolvesAtMs !== undefined
+        weaponState.meleeAttackResolvesAtMs !== undefined)
       ) {
-        if (state.elapsedMs >= weaponState.meleeAttackResolvesAtMs) {
+        if (orbiting || state.elapsedMs >= weaponState.meleeAttackResolvesAtMs!) {
           const aimAngle = weaponState.lastAimAngleRad ?? slotTransform.angleRad;
           const rapidHitCount = Math.max(
             1,
@@ -225,6 +231,7 @@ export function applyAutoFireSystem(
               ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
               : baseDamage;
             const appliedDamage = Math.min(enemy.hp, damage);
+            recordDamageEvent(damageEvents, state.elapsedMs, enemy, appliedDamage);
             const nextEnemyHp = enemy.hp - appliedDamage;
 
             nextEnemies[targetIndex] = { ...enemy, hp: nextEnemyHp, alive: nextEnemyHp > 0 };
@@ -232,7 +239,7 @@ export function applyAutoFireSystem(
               ...nextPlayer,
               hp: Math.min(
                 nextPlayer.maxHp,
-                nextPlayer.hp + appliedDamage * (Math.max(0, nextPlayer.stats.lifeStealPct) / 100)
+                nextPlayer.hp + appliedDamage * (Math.max(0, nextPlayer.stats.lifeStealPct) / 400)
               )
             };
             hitsLandedThisTick += 1;
@@ -254,6 +261,24 @@ export function applyAutoFireSystem(
             }
           };
 
+          if (orbiting) {
+            const hitTimes: Record<string, number> = {};
+            for (const enemy of nextEnemies) {
+              if (!enemy.alive) continue;
+              const last = weaponState.orbitHitAtMs?.[enemy.id] ?? -Infinity;
+              if (state.elapsedMs - last < 500) { hitTimes[enemy.id] = last; continue; }
+              // Sample the swept arc to retain contacts on slower server frames.
+              const steps = Math.max(1, Math.ceil(deltaMs / 16));
+              for (let step = 0; step <= steps; step++) {
+                const point = evolvedOrbit(nextPlayer.x, nextPlayer.y, state.elapsedMs - deltaMs + deltaMs * step / steps, weaponIndex);
+                if (Math.hypot(enemy.x - point.x, enemy.y - point.y) <= enemy.radius + 22) {
+                  applyMeleeHit(enemy.id); hitTimes[enemy.id] = state.elapsedMs; break;
+                }
+              }
+            }
+            nextWeaponStates[weaponIndex] = { ...weaponState, orbitHitAtMs: hitTimes, meleeAttackResolvesAtMs: null };
+            continue;
+          }
           for (let hitIndex = 0; hitIndex < rapidHitCount; hitIndex += 1) {
             const activePrimaryTarget =
               nextEnemies.find((enemy) => enemy.id === firstTarget?.id && enemy.alive) ??
@@ -409,6 +434,7 @@ export function applyAutoFireSystem(
 
   return {
     ...state,
+    damageEvents,
     seed: nextSeed,
     kills: nextKills,
     players: nextPlayers,

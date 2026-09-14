@@ -344,6 +344,9 @@ function collectThemeImageAssets(theme: ArenaSurvivorVisualTheme): ArenaSurvivor
     }
   }
 
+  if (theme === "frostfire-saga") for (const name of ["ground", "ground-frost", "ground-embers", "shop", "forge", "chest", "rare-chest", "rocks", "dead-tree"]) {
+    assets.push({ key: `survival-${name}`, path: `/arena-survivor/themes/frostfire-saga/survival/${name}.png`, maxEdge: name === "ground" ? 0 : name.startsWith("ground-") ? 1024 : 384 });
+  }
   assets.push({
     key: arenaSurvivorBackgroundKeys[theme],
     path: arenaSurvivorBackgroundPaths[theme],

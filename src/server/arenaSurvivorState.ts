@@ -47,6 +47,8 @@ export interface ArenaSurvivorPublicState extends PublicArenaSurvivorState {
 }
 
 export interface ArenaSurvivorRuntimeState extends BaseRoundState {
+  damageEvents?: PublicArenaSurvivorState["damageEvents"];
+  survival?: PublicArenaSurvivorState["survival"];
   language: SupportedLanguage;
   visualTheme: PublicArenaSurvivorState["visualTheme"];
   seed: number;

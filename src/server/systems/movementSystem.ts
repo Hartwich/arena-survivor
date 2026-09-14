@@ -1,5 +1,6 @@
 import type { ArenaSurvivorRuntimeState } from "../arenaSurvivorState.js";
 import { clamp, clampVectorMagnitude } from "../arenaSurvivorState.js";
+import { moveThroughFrostfire } from "../../survivalWorld.js";
 
 export function applyMovementSystem(
   state: ArenaSurvivorRuntimeState,
@@ -11,9 +12,10 @@ export function applyMovementSystem(
 
   const deltaSeconds = Math.max(0.001, deltaMs / 1000);
 
+  const positions = state.players.map(p => ({ ...p }));
   return {
     ...state,
-    players: state.players.map((player) => {
+    players: state.players.map((player, index) => {
       if (!player.alive) {
         return player;
       }
@@ -21,23 +23,41 @@ export function applyMovementSystem(
       const moveVector = clampVectorMagnitude(player.moveInputX, player.moveInputY);
       const nextVx = moveVector.x * player.moveSpeed;
       const nextVy = moveVector.y * player.moveSpeed;
-      const nextX = clamp(
+      let nextX = clamp(
         player.x + nextVx * deltaSeconds,
         player.radius,
         state.arenaWidth - player.radius
       );
-      const nextY = clamp(
+      let nextY = clamp(
         player.y + nextVy * deltaSeconds,
         player.radius,
         state.arenaHeight - player.radius
       );
 
+      if (state.survival) {
+        // Project the intended position onto each teammate's allowed disk.
+        // A tiny safety margin keeps tangent motion possible without teleporting.
+        for (let pass = 0; pass < 6; pass++) for (const peer of positions) {
+          if (!peer.alive || peer.playerId === player.playerId) continue;
+          const oldDistance = Math.hypot(player.x - peer.x, player.y - peer.y);
+          const limit = Math.max(state.survival.maxGroupDistance, oldDistance);
+          const dx = nextX - peer.x, dy = nextY - peer.y, distance = Math.hypot(dx, dy);
+          if (distance > limit) { nextX = peer.x + dx / distance * limit; nextY = peer.y + dy / distance * limit; }
+        }
+        const point = moveThroughFrostfire(player.x, player.y, nextX, nextY, player.radius);
+        nextX = point.x; nextY = point.y;
+        // Sliding must also respect the group boundary; never push a player through terrain.
+        if (positions.some(peer => peer.alive && peer.playerId !== player.playerId && Math.hypot(nextX - peer.x, nextY - peer.y) > Math.max(state.survival!.maxGroupDistance, Math.hypot(player.x - peer.x, player.y - peer.y)) + 0.001)) {
+          nextX = player.x; nextY = player.y;
+        }
+        positions[index] = { ...player, x: nextX, y: nextY };
+      }
       return {
         ...player,
         x: nextX,
         y: nextY,
-        vx: nextVx,
-        vy: nextVy,
+        vx: (nextX - player.x) / deltaSeconds,
+        vy: (nextY - player.y) / deltaSeconds,
         facingAngleRad: -Math.PI / 2
       };
     })

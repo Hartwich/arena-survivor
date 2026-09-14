@@ -1,4 +1,5 @@
 import { createId } from "../utils/createId.js";
+import { isFrostfireWalkable } from "../../survivalWorld.js";
 import { arenaSurvivorConfig } from "../arenaSurvivorConfig.js";
 import { createArenaSurvivorEnemy } from "../factories/createEnemy.js";
 import type { ArenaSurvivorRuntimeSpawnIndicatorState, ArenaSurvivorRuntimeState } from "../arenaSurvivorState.js";
@@ -50,6 +51,12 @@ function createEdgeSpawnPoint(
   const margin = arenaSurvivorConfig.enemySpawnMargin;
   const width = state.arenaWidth;
   const height = state.arenaHeight;
+  if (state.survival) {
+    const center = resolveSpawnTarget(state);
+    const angle = offsetRoll.value * Math.PI * 2;
+    return { x: Math.max(margin, Math.min(width - margin, center.x + Math.cos(angle) * 650)),
+      y: Math.max(margin, Math.min(height - margin, center.y + Math.sin(angle) * 650)), seed: offsetRoll.seed };
+  }
 
   switch (side) {
     case 0:
@@ -109,6 +116,7 @@ function createSafeSpawnPoint(
   for (let attempt = 0; attempt < arenaSurvivorConfig.enemySpawnPointAttemptCount; attempt += 1) {
     const candidate = createEdgeSpawnPoint(state, nextSeed, forcedSide);
     nextSeed = candidate.seed;
+    if (state.survival && !isFrostfireWalkable(candidate.x, candidate.y, 65)) continue;
     const closestPlayerDistanceSquared = resolveClosestPlayerDistanceSquared(
       state,
       candidate.x,
@@ -179,7 +187,7 @@ function spawnDueIndicators(state: ArenaSurvivorRuntimeState): ArenaSurvivorRunt
 
   const availableEnemySlots = Math.max(
     0,
-    arenaSurvivorConfig.maxActiveEnemies - state.enemies.length
+    (state.survival ? 180 : arenaSurvivorConfig.maxActiveEnemies) - state.enemies.length
   );
   const spawnableIndicators = dueIndicators.slice(0, availableEnemySlots);
 
@@ -252,10 +260,10 @@ function scheduleBossSpawnIndicator(
         contactDamage: definition
           ? Math.max(
               1,
-              Math.round(definition.contactDamage * difficulty.enemyDamageMultiplier)
+              Math.round(definition.contactDamage * difficulty.enemyDamageMultiplier * 2)
             )
           : undefined,
-        projectileDamageMultiplier: difficulty.enemyDamageMultiplier
+        projectileDamageMultiplier: difficulty.enemyDamageMultiplier * 2
       }
     ),
     seed: bossSpawnPoint.seed
@@ -315,8 +323,20 @@ export function applySpawnSystem(state: ArenaSurvivorRuntimeState): ArenaSurvivo
     state.waveNumber,
     difficulty.spawnBurstBonus
   );
-  const bossWave = resolveArenaSurvivorBossWave(state.waveNumber);
+  if (state.survival) {
+    const minutes = state.elapsedMs / 60_000;
+    const pressure = 1 + Math.max(0, state.difficultyTier - 3) * 0.25;
+    difficulty.enemyHpMultiplier *= 1 + minutes * 0.12 * pressure;
+    difficulty.enemyDamageMultiplier *= 1 + minutes * 0.07 * pressure;
+    difficulty.enemySpeedMultiplier *= 1 + Math.min(0.4, minutes * 0.025 * pressure);
+    difficulty.maxEnemiesOnScreen = Math.min(180, Math.round((24 + Math.floor(minutes / 2) * 18 + (state.players.length - 1) * 5) * pressure));
+    difficulty.enemySpawnIntervalMs = Math.max(140, (950 - state.elapsedMs / 1200) / pressure);
+  }
+  const bossWave = state.survival ? null : resolveArenaSurvivorBossWave(state.waveNumber);
   let nextState = spawnDueIndicators(state);
+  if (state.survival && nextState.nextEnemySpawnAtMs < state.elapsedMs - 2000) {
+    nextState = { ...nextState, nextEnemySpawnAtMs: state.elapsedMs };
+  }
 
   if (
     bossWave &&

@@ -406,7 +406,7 @@ function createOwnedItemState(itemId: string, level: number): ArenaSurvivorOwned
   };
 }
 
-function createLoadoutWeaponState(
+export function createLoadoutWeaponState(
   weaponId: string,
   level: number,
   options?: {
@@ -417,7 +417,7 @@ function createLoadoutWeaponState(
 ): ArenaSurvivorLoadoutWeaponState {
   const { definition, levelDefinition } = resolveArenaSurvivorWeaponLevel(weaponId, level);
   const investedMaterials = Math.max(0, Math.round(options?.investedMaterials ?? 0));
-  const sellValue = resolveWeaponSellValue(investedMaterials);
+  const sellValue = Math.max(1, resolveWeaponSellValue(Math.max(investedMaterials, levelDefinition.cost)));
 
   return {
     weaponInstanceId: options?.weaponInstanceId ?? createWeaponInstanceId(),
@@ -474,7 +474,7 @@ export function resolveArenaSurvivorWeaponDefinition(weaponId: string): ArenaSur
   };
 }
 
-export function resolveArenaSurvivorWeaponLevel(weaponId: string, level: number) {
+export function resolveArenaSurvivorWeaponLevel(weaponId: string, level: number, evolved = false) {
   const definition = resolveArenaSurvivorWeaponDefinition(weaponId);
   const resolvedLevel = Math.min(definition.levels.length, Math.max(1, level));
   const levelDefinition =
@@ -482,7 +482,7 @@ export function resolveArenaSurvivorWeaponLevel(weaponId: string, level: number)
 
   return {
     definition,
-    levelDefinition
+    levelDefinition: evolved ? { ...levelDefinition, damage: levelDefinition.damage * 2, cooldownMs: levelDefinition.cooldownMs * 0.7, range: levelDefinition.range * 1.3, projectileCount: (levelDefinition.projectileCount ?? 1) + 1 } : levelDefinition
   };
 }
 
@@ -834,7 +834,7 @@ function createWeaponOffer(
   };
 }
 
-function createOfferPools(
+export function createOfferPools(
   player: ArenaSurvivorRuntimePlayerState,
   waveNumber: number,
   seed: number
@@ -956,18 +956,20 @@ export function createArenaSurvivorShopStateForPlayer(
   waveNumber: number,
   rerollCount: number,
   seed: number,
-  language?: SupportedLanguage
+  language?: SupportedLanguage,
+  priceMultiplier = 1
 ): { shop: ArenaSurvivorShopState; seed: number } {
   const en = language === "en";
   const offerResolution = buildShopOffersForPlayer(player, waveNumber, seed);
-  const rerollCost = resolveArenaSurvivorShopRerollCost(waveNumber, rerollCount);
+  const rerollCost = Math.ceil(resolveArenaSurvivorShopRerollCost(waveNumber, rerollCount) * priceMultiplier);
+  const pricedOffers = offerResolution.offers.map(offer => ({ ...offer, cost: Math.ceil(offer.cost * priceMultiplier), affordable: offer.affordable && player.materials >= Math.ceil(offer.cost * priceMultiplier) }));
 
   return {
     seed: offerResolution.seed,
     shop: {
       mode: "regular",
       available: offerResolution.offers.length > 0,
-      offers: offerResolution.offers,
+      offers: pricedOffers,
       message:
         offerResolution.offers.length > 0
           ? en ? "Buy upgrades or reroll offers for the next wave." : "Kaufe Upgrades oder wuerfle neue Angebote fuer die naechste Welle."
@@ -1071,7 +1073,8 @@ export function applyArenaSurvivorShopReroll(
     state.waveNumber,
     player.shop.rerollCount + 1,
     rerollSeed,
-    state.language
+    state.language,
+    state.survival ? 1.35 : 1
   );
   const nextPlayers = [...state.players];
   nextPlayers[playerIndex] = {

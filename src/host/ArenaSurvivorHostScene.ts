@@ -1,4 +1,7 @@
+import { createCombatFeedback } from "./combatFeedback.js";
 import Phaser from "phaser";
+import { createSurvivalOverlay } from "./survivalOverlay.js";
+import { createSurvivalScenery } from "./survivalScenery.js";
 import type { ArenaSurvivorState } from "../protocol.js";
 import {
   arenaSurvivorDefaultVisualTheme,
@@ -66,7 +69,11 @@ function readSelectedVisualTheme(client: HostClientLike | undefined) {
 }
 
 export class ArenaSurvivorHostScene extends Phaser.Scene {
+  private combatFeedback?: ReturnType<typeof createCombatFeedback>;
   private unsubscribe?: () => void;
+  private survivalOverlay?: ReturnType<typeof createSurvivalOverlay>;
+  private survivalTiles: ReturnType<typeof createSurvivalScenery> = [];
+  private language: "de" | "en" = "de";
   private arenaBackground?: Phaser.GameObjects.Image;
   private arenaBackgroundShade?: Phaser.GameObjects.Rectangle;
   private arenaGraphics?: Phaser.GameObjects.Graphics;
@@ -99,6 +106,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
 
   create(): void {
     bindPlatformTheme(this.registry);
+    this.combatFeedback = createCombatFeedback(this);
     const client = this.registry.get("hostClient") as HostClientLike;
     const canvasContext = this.game.canvas.getContext("2d");
 
@@ -119,6 +127,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     this.arenaGraphics = this.add.graphics();
     this.entityGraphics = this.add.graphics();
     this.playerHealthGraphics = this.add.graphics().setDepth(12);
+    this.survivalOverlay = createSurvivalOverlay(this);
     this.hud = createArenaHud({
       onRestartRun: () => {
         client.sendGameHostAction("arena-survivor", { type: "restart-run" });
@@ -129,8 +138,11 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     });
 
     this.unsubscribe = client.subscribe((state) => {
+      this.language = state.room?.language === "en" ? "en" : "de";
       // Intro and result screens belong to this game, not the platform.
       if (renderRoundScreens(this, state)) {
+        this.combatFeedback?.clear();
+        this.survivalOverlay?.hide();
         this.roundScreenActive = true;
         return;
       }
@@ -143,6 +155,8 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       }
 
       if (!gameState) {
+        this.combatFeedback?.clear();
+        this.survivalOverlay?.hide();
         this.arenaBackground?.setVisible(false);
         this.arenaBackgroundShade?.setVisible(false);
         this.arenaGraphics.clear();
@@ -165,7 +179,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       const isNewState = gameState !== this.motion.base;
       this.motion.accept(
         gameState,
-        state.game?.phase === "playing" && gameState.result.outcome === "running",
+        state.game?.phase === "playing" && gameState.result.outcome === "running" && !gameState.survival?.pause,
         performance.now()
       );
 
@@ -176,6 +190,8 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
       const viewportKey = `${gameState.arenaWidth}x${gameState.arenaHeight}:${gameState.visualTheme}`;
       const shouldResetArena =
         this.lastRoundNumber !== state.game?.roundNumber || this.lastViewportKey !== viewportKey;
+
+      this.combatFeedback?.accept(gameState, shouldResetArena, this.motion.live);
 
       if (shouldResetArena || !texturesReady) {
         this.syncBackground(gameState);
@@ -197,7 +213,11 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.combatFeedback?.clear();
+      this.combatFeedback = undefined;
       this.unsubscribe?.();
+      this.survivalOverlay?.destroy();
+      this.survivalTiles.forEach(tile => tile.destroy()); this.survivalTiles = [];
       this.unsubscribe = undefined;
       this.arenaBackground?.destroy();
       this.arenaBackground = undefined;
@@ -259,6 +279,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     drawArenaSurvivorEntities(this, this.entityGraphics, view, meta);
     drawArenaSurvivorPlayerHealthBars(this.playerHealthGraphics, view);
     syncArenaSurvivorSpriteLayer(this, this.spriteLayer, view, meta);
+    this.survivalOverlay?.update(view, this.language);
   }
 
   private syncBackground(gameState: ArenaSurvivorState | null): void {
@@ -276,7 +297,11 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
         this.arenaBackground.setTexture(backgroundKey);
       }
 
-      this.arenaBackground.setVisible(backgroundReady);
+      this.arenaBackground.setVisible(backgroundReady && !gameState.survival);
+      if (gameState.survival && !this.survivalTiles.length) {
+        this.survivalTiles = createSurvivalScenery(this);
+      }
+      this.survivalTiles.forEach(tile => tile.setVisible(Boolean(gameState.survival)));
       this.arenaBackground.setPosition(0, 0);
       this.arenaBackground.setDisplaySize(gameState.arenaWidth, gameState.arenaHeight);
     }

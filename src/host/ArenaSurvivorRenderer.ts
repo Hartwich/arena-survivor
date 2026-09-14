@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { evolvedOrbit } from "../evolvedOrbit.js";
 import {
   ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD,
   ARENA_SURVIVOR_MELEE_IMPACT_RATIO,
@@ -153,6 +154,14 @@ interface NearestEnemy {
  * Every weapon of every player and the marshmallow faces each used to scan the
  * whole enemy list on their own, up to ~30 scans per frame.
  */
+function nearCamera(scene: Phaser.Scene, entity: { x: number; y: number; radius: number }): boolean {
+  const camera = scene.cameras.main;
+  const padding = entity.radius * 3 + 100;
+  return entity.x >= camera.scrollX - padding && entity.y >= camera.scrollY - padding &&
+    entity.x <= camera.scrollX + scene.scale.width / camera.zoom + padding &&
+    entity.y <= camera.scrollY + scene.scale.height / camera.zoom + padding;
+}
+
 function resolveNearestEnemyByPlayer(state: ArenaSurvivorState): Map<string, NearestEnemy | null> {
   const nearestByPlayer = new Map<string, NearestEnemy | null>();
 
@@ -383,6 +392,54 @@ function drawArenaSurvivorProjectile(
   const angleRad = resolveProjectileAngle(projectile.vx, projectile.vy);
 
   switch (projectile.definitionId) {
+    case "coil-spike":
+      // A long electromagnetic needle with two parallel rails.
+      graphics.lineStyle(radius * 0.45, 0xa78bfa, 0.25);
+      graphics.lineBetween(x - radius * 2.3, y, x + radius * 1.8, y);
+      for (const side of [-1, 1]) {
+        graphics.lineStyle(radius * 0.18, 0xc4b5fd, 0.95);
+        graphics.lineBetween(x - radius * 1.8, y + side * radius * 0.45,
+          x + radius * 0.6, y + side * radius * 0.45);
+      }
+      graphics.fillStyle(0xf5f3ff, 1);
+      graphics.fillTriangle(x + radius * 2.1, y, x - radius * 0.7, y - radius * 0.3,
+        x - radius * 0.7, y + radius * 0.3);
+      return;
+    case "gear-shot":
+      // Brass teeth and a hollow hub remain readable even without color.
+      graphics.fillStyle(0xd99a43, 1);
+      for (let tooth = 0; tooth < 8; tooth += 1) {
+        const angle = tooth * Math.PI / 4;
+        graphics.fillCircle(x + Math.cos(angle) * radius * 1.15,
+          y + Math.sin(angle) * radius * 1.15, radius * 0.38);
+      }
+      graphics.fillCircle(x, y, radius * 1.08);
+      graphics.fillStyle(0x453027, 1);
+      graphics.fillCircle(x, y, radius * 0.48);
+      graphics.lineStyle(radius * 0.17, 0xffe0a3, 1);
+      graphics.strokeCircle(x, y, radius * 0.75);
+      return;
+    case "venom-dart":
+      graphics.fillStyle(0x84cc16, 0.2);
+      graphics.fillEllipse(x - radius * 0.9, y, radius * 3, radius * 1.4);
+      graphics.lineStyle(radius * 0.3, 0xd9f99d, 1);
+      graphics.lineBetween(x - radius * 1.65, y, x + radius * 0.8, y);
+      graphics.fillStyle(0xa3e635, 1);
+      graphics.fillTriangle(x + radius * 1.9, y, x, y - radius * 0.7, x, y + radius * 0.7);
+      graphics.fillStyle(0x4d7c0f, 1);
+      graphics.fillTriangle(x - radius * 0.8, y, x - radius * 1.8, y - radius * 0.65,
+        x - radius * 1.8, y + radius * 0.65);
+      return;
+    case "prism-shard":
+      graphics.fillStyle(0xe879f9, 0.18);
+      graphics.fillCircle(x, y, radius * 1.7);
+      graphics.fillStyle(0xf0abfc, 1);
+      graphics.fillTriangle(x + radius * 1.5, y, x, y - radius, x - radius * 1.3, y);
+      graphics.fillStyle(0x67e8f9, 1);
+      graphics.fillTriangle(x + radius * 1.5, y, x, y + radius, x - radius * 1.3, y);
+      graphics.lineStyle(radius * 0.18, 0xffffff, 0.95);
+      graphics.lineBetween(x - radius * 1.3, y, x + radius * 1.5, y);
+      return;
     case "hunter-arrow":
       drawProjectileTriangle(graphics, x, y, radius, angleRad, 0xf59e0b);
       graphics.lineStyle(Math.max(1, radius * 0.4), 0xfef3c7, 0.88);
@@ -397,6 +454,17 @@ function drawArenaSurvivorProjectile(
       drawProjectileBolt(graphics, x, y, Math.max(2.2, radius * 0.7), angleRad, 0xe2e8f0);
       return;
     case "ember-orb":
+      graphics.fillStyle(0xef4444, 0.45);
+      graphics.fillTriangle(x - radius * 2.4, y, x + radius * 0.25, y - radius,
+        x + radius * 0.25, y + radius);
+      graphics.fillStyle(0xfbbf24, 0.75);
+      graphics.fillTriangle(x - radius * 1.8, y, x + radius * 0.3, y - radius * 0.5,
+        x + radius * 0.3, y + radius * 0.5);
+      graphics.fillStyle(0xf97316, 0.97);
+      graphics.fillCircle(x, y, radius);
+      graphics.fillStyle(0xfff7c2, 1);
+      graphics.fillCircle(x + radius * 0.25, y, radius * 0.5);
+      return;
     case "ember-bolt":
       graphics.fillStyle(0xfb923c, 0.2);
       graphics.fillCircle(x, y, radius * 2.2);
@@ -419,7 +487,16 @@ function drawArenaSurvivorProjectile(
       );
       return;
     case "spark-bolt":
-      drawProjectileBolt(graphics, x, y, radius, angleRad, 0x38bdf8);
+      graphics.lineStyle(radius * 0.8, 0x38bdf8, 0.22);
+      graphics.lineBetween(x - radius * 2.2, y, x + radius * 2.1, y);
+      graphics.lineStyle(radius * 0.32, 0xe0f2fe, 1);
+      graphics.strokePoints([
+        new Phaser.Geom.Point(x - radius * 2.1, y + radius * 0.4),
+        new Phaser.Geom.Point(x - radius * 0.6, y - radius * 0.5),
+        new Phaser.Geom.Point(x - radius * 0.2, y + radius * 0.5),
+        new Phaser.Geom.Point(x + radius * 0.8, y - radius * 0.45),
+        new Phaser.Geom.Point(x + radius * 2, y)
+      ], false);
       return;
     case "toxic-spore":
       graphics.fillStyle(0x22c55e, 0.18);
@@ -440,8 +517,10 @@ function drawArenaSurvivorProjectile(
       graphics.fillCircle(x, y, Math.max(1.6, radius * 0.38));
       return;
     case "pistol-round":
+      graphics.fillStyle(0xf59e0b, 0.25);
+      graphics.fillTriangle(x - radius * 2.2, y, x, y - radius * 0.55, x, y + radius * 0.55);
       graphics.fillStyle(0xfbbf24, 0.96);
-      graphics.fillCircle(x, y, radius);
+      graphics.fillRoundedRect(x - radius * 0.8, y - radius * 0.6, radius * 2, radius * 1.2, radius * 0.55);
       graphics.fillStyle(0xfffbeb, 0.75);
       graphics.fillCircle(x, y, Math.max(1.2, radius * 0.42));
       return;
@@ -572,7 +651,7 @@ export function resolveArenaSurvivorRenderMeta(
   state: ArenaSurvivorState
 ): ArenaSurvivorRenderMeta {
   const alivePlayers = state.players.filter((player) => player.alive);
-  const cameraPadding = Math.max(
+  const cameraPadding = state.survival ? 160 : Math.max(
     arenaSurvivorVisualConfig.cameraPadding.min,
     Math.round(
       Math.min(state.arenaWidth, state.arenaHeight) * arenaSurvivorVisualConfig.cameraPadding.ratio
@@ -582,7 +661,7 @@ export function resolveArenaSurvivorRenderMeta(
     scene.scale.width / state.arenaWidth,
     scene.scale.height / state.arenaHeight
   );
-  const minZoom = Math.max(arenaSurvivorVisualConfig.cameraPadding.minZoom, arenaFitZoom);
+  const minZoom = state.survival ? Math.min(scene.scale.width, scene.scale.height) / (state.survival.maxGroupDistance + 320) : Math.max(arenaSurvivorVisualConfig.cameraPadding.minZoom, arenaFitZoom);
   const maxZoom = Math.max(arenaSurvivorVisualConfig.cameraPadding.maxZoom, minZoom);
   let centerX = state.arenaWidth / 2;
   let centerY = state.arenaHeight / 2;
@@ -734,7 +813,10 @@ const PROJECTILE_TEXTURE_RADIUS = 16;
 /** Glows reach 2.5x the radius; the texture leaves room for them and the line caps. */
 const PROJECTILE_TEXTURE_SIZE = Math.ceil(PROJECTILE_TEXTURE_RADIUS * 2.6 * 2) + 4;
 /** Shapes that point along the flight direction and rotate with it. */
-const DIRECTIONAL_PROJECTILES = new Set(["hunter-arrow", "smg-pellet", "spark-bolt"]);
+const DIRECTIONAL_PROJECTILES = new Set([
+  "hunter-arrow", "smg-pellet", "spark-bolt", "pistol-round", "coil-spike",
+  "venom-dart", "prism-shard", "frost-shard", "ember-orb"
+]);
 
 /**
  * Texture for one projectile look, drawn once with the same vector routine the
@@ -797,7 +879,7 @@ function syncProjectileSprites(
     sprite.setRotation(
       DIRECTIONAL_PROJECTILES.has(projectile.definitionId)
         ? resolveProjectileAngle(projectile.vx, projectile.vy)
-        : 0
+        : projectile.definitionId === "gear-shot" ? state.elapsedMs / 110 : 0
     );
     activeIds.add(projectile.id);
   }
@@ -1258,7 +1340,8 @@ export function syncArenaSurvivorSpriteLayer(
     }
   }
 
-  const activeEnemyIds = new Set(state.enemies.filter((enemy) => enemy.alive).map((enemy) => enemy.id));
+  const visibleEnemies = state.enemies.filter(enemy => enemy.alive && (!state.survival || nearCamera(scene, enemy)));
+  const activeEnemyIds = new Set(visibleEnemies.map(enemy => enemy.id));
   const activePickupIds = new Set<string>();
   const activeWeaponKeys = new Set<string>();
 
@@ -1289,7 +1372,7 @@ export function syncArenaSurvivorSpriteLayer(
 
   releasePooledImages(layer, layer.pickupSprites, activePickupIds);
 
-  for (const enemy of state.enemies) {
+  for (const enemy of visibleEnemies) {
     if (!enemy.alive) {
       continue;
     }
@@ -1354,7 +1437,7 @@ export function syncArenaSurvivorSpriteLayer(
       const displaySize =
         resolveWeaponDisplaySize(player, slotIndex) *
         (state.visualTheme === "marshmallow-mayhem" ? MARSHMALLOW_WEAPON_SCALE : 1);
-      const weaponPose = resolveWeaponPose(
+      const weaponPose = equippedWeapon.evolved && equippedWeapon.category === "melee" ? evolvedOrbit(player.x, player.y, state.elapsedMs, slotIndex) : resolveWeaponPose(
         player,
         state,
         slotIndex,
@@ -1377,6 +1460,12 @@ export function syncArenaSurvivorSpriteLayer(
       nextWeaponSprite.setVisible(player.alive);
       nextWeaponSprite.setPosition(weaponPose.x, weaponPose.y);
       nextWeaponSprite.setDisplaySize(displaySize, displaySize);
+      if (equippedWeapon.evolved) {
+        nextWeaponSprite.setDisplaySize(displaySize * 1.25, displaySize * 1.25);
+        nextWeaponSprite.setTint(0xc4b5fd);
+      } else {
+        nextWeaponSprite.clearTint();
+      }
       const mirrorRangedWeapon =
         equippedWeapon.category === "ranged" &&
         Math.cos(weaponPose.aimAngle) < 0;

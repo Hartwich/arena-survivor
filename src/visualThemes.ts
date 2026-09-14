@@ -283,7 +283,8 @@ export function resolveArenaSurvivorLevelBonusIconPath(
   theme: ArenaSurvivorVisualTheme
 ): string | undefined {
   if (theme === "frostfire-saga" || theme === "marshmallow-mayhem") {
-    return `/arena-survivor/themes/${theme}/upgrades/${bonusId}.png`;
+    const aliases: Record<string, string> = { dodge: "move-speed", luck: "crit", harvesting: "max-health", pickup: "range", regen: "max-health", "crit-damage": "crit", "melee-power": "damage", "ranged-power": "attack-speed", "magic-power": "life-steal" };
+    return `/arena-survivor/themes/${theme}/upgrades/${aliases[bonusId] ?? bonusId}.png`;
   }
   return undefined;
 }

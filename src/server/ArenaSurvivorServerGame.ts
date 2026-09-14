@@ -58,6 +58,7 @@ import {
 } from "../visualThemes.js";
 
 const phaseTimings = resolveRoundPhaseTimings(arenaSurvivorManifest.phaseDurations);
+import { initializeSurvival, handleSurvivalInput, updateSurvivalPause, advanceSurvivalWorld, resolveSurvivalCombat, survivalDurationMs } from "./survival.js";
 
 function getPlayers(context: { players: GamePlayerSummary[] }): GamePlayerSummary[] {
   if (context.players.length > 0) {
@@ -178,6 +179,7 @@ function toSlimControllerState(
   players: ArenaSurvivorPlayerState[]
 ): ArenaSurvivorPublicState {
   return {
+    survival: state.survival,
     visualTheme: state.visualTheme,
     arenaWidth: state.arenaWidth,
     arenaHeight: state.arenaHeight,
@@ -203,7 +205,7 @@ function buildScore(state: ArenaSurvivorRuntimeState): ScoreEntry[] {
   return state.players.map((player) => ({
     playerId: player.playerId,
     delta:
-      state.result.outcome === "survived"
+      state.result.outcome === "survived" || state.survival?.won
         ? Math.max(3, state.waveNumber + player.runStats.kills)
         : Math.max(0, Math.floor(player.runStats.kills / 2)),
     reason: "Arena Survivor"
@@ -394,8 +396,9 @@ export const arenaSurvivorServerGame: ServerGame<
     }
 
     if (state) {
-      if (hostAction.type === "restart-run" && state.result.outcome === "defeated") {
-        return { state: createRestartedRunState(state, context) };
+      if (hostAction.type === "restart-run" && (state.result.outcome === "defeated" || (state.survival && state.result.outcome === "survived"))) {
+        const restarted = createRestartedRunState(state, context);
+        return { state: state.survival ? initializeSurvival(restarted) : restarted };
       }
 
       return {};
@@ -422,6 +425,11 @@ export const arenaSurvivorServerGame: ServerGame<
         clampArenaSurvivorDifficultyTier(hostAction.difficulty);
     }
 
+    if (hostAction.mode === "wave" || hostAction.mode === "survival") {
+      roomSettings.arenaSurvivorMode = hostAction.mode;
+      if (hostAction.mode === "survival") roomSettings[arenaSurvivorRoomSettingKeys.visualTheme] = "frostfire-saga";
+    }
+
     if (hostAction.visualTheme !== undefined) {
       roomSettings[arenaSurvivorRoomSettingKeys.visualTheme] =
         isArenaSurvivorVisualTheme(hostAction.visualTheme)
@@ -429,6 +437,9 @@ export const arenaSurvivorServerGame: ServerGame<
           : arenaSurvivorDefaultVisualTheme;
     }
 
+    if (hostAction.mode === "survival" || (hostAction.mode !== "wave" && context.roomSettings.arenaSurvivorMode === "survival")) {
+      roomSettings[arenaSurvivorRoomSettingKeys.visualTheme] = "frostfire-saga";
+    }
     return {
       roomSettings
     };
@@ -440,7 +451,8 @@ export const arenaSurvivorServerGame: ServerGame<
       context.previousRound?.gameId === arenaSurvivorManifest.id
         ? resolvePreviousArenaState(context.previousRound.state as ArenaSurvivorRuntimeState)
         : null;
-    const playerSetup = createPlayersFromCarry(gamePlayers, context.now, previousState);
+    const survivalMode = context.roomSettings.arenaSurvivorMode === "survival";
+    const playerSetup = createPlayersFromCarry(gamePlayers, context.now, survivalMode || previousState?.survival ? null : previousState);
     const visualTheme = resolveConfiguredArenaSurvivorVisualTheme(context);
     const configuredDifficultyTier = resolveConfiguredArenaSurvivorDifficultyTier(context);
     const difficulty = resolveArenaSurvivorDifficulty(
@@ -449,7 +461,7 @@ export const arenaSurvivorServerGame: ServerGame<
       configuredDifficultyTier
     );
 
-    return {
+    const initial: ArenaSurvivorRuntimeState = {
       ...createBaseRoundState("round_intro", context.now, {
         durationMs: phaseTimings.roundIntroMs,
         message: playerSetup.continuedRun
@@ -491,8 +503,12 @@ export const arenaSurvivorServerGame: ServerGame<
         alivePlayerCount: countAlivePlayers(playerSetup.players)
       }
     };
+    return survivalMode ? initializeSurvival(initial) : initial;
   },
   startRound(state, context) {
+    if (state.survival) {
+      return transitionRoundState(initializeSurvival(state), "playing", context.now, { startedAt: context.now, message: "Survival" });
+    }
     const freshPlayers = rebuildPlayersForNextWave(getPlayers(context).slice(0, 4), state.players, context.now);
     const configuredDifficultyTier = resolveConfiguredArenaSurvivorDifficultyTier(context);
     const difficulty = resolveArenaSurvivorDifficulty(
@@ -548,6 +564,11 @@ export const arenaSurvivorServerGame: ServerGame<
 
     if (playerIndex === -1) {
       return state;
+    }
+
+    if (state.survival && state.phase === "playing") {
+      if (state.survival.pause) return handleSurvivalInput(state, input, context.now);
+      if (input.type !== "move") return state;
     }
 
     if (
@@ -608,6 +629,12 @@ export const arenaSurvivorServerGame: ServerGame<
       return state;
     }
 
+    if (state.survival) {
+      const wasPaused = Boolean(state.survival.pause);
+      state = updateSurvivalPause(state, context.now, context.players.filter(p => p.connected).map(p => p.id));
+      if (wasPaused || state.survival?.pause || !state.survival?.participantIds.length) return state;
+    }
+
     let nextState: ArenaSurvivorRuntimeState = {
       ...state,
       elapsedMs: state.elapsedMs + deltaMs,
@@ -624,16 +651,23 @@ export const arenaSurvivorServerGame: ServerGame<
       }))
     };
 
+    if (nextState.survival) {
+      nextState.waveNumber = 1 + Math.floor(nextState.elapsedMs / 60_000);
+      nextState.remainingMs = Math.max(0, survivalDurationMs - nextState.elapsedMs);
+      nextState = advanceSurvivalWorld(nextState);
+    }
     nextState = applySpawnSystem(nextState);
+    const beforeCombat = nextState;
     nextState = applyMovementSystem(nextState, deltaMs);
     nextState = applyEnemyAiSystem(nextState, deltaMs);
-    nextState = applyAutoFireSystem(nextState, deltaMs, context.now);
+    const combatNow = nextState.survival ? nextState.elapsedMs : context.now;
+    nextState = applyAutoFireSystem(nextState, deltaMs, combatNow);
     nextState = applyProjectileSystem(nextState, deltaMs);
 
     const collisionReport = resolveCollisionSystem(nextState);
-    nextState = applyDamageSystem(nextState, collisionReport, context.now);
+    nextState = applyDamageSystem(nextState, collisionReport, combatNow);
     nextState = applyPickupSystem(nextState, deltaMs);
-    nextState = resolveRoundEndSystem(nextState, context.now);
+    nextState = nextState.survival ? resolveSurvivalCombat(nextState, beforeCombat, context.now) : resolveRoundEndSystem(nextState, context.now);
 
     if (nextState.phase !== "playing") {
       return nextState;
@@ -658,6 +692,7 @@ export const arenaSurvivorServerGame: ServerGame<
   },
   toPublicState(state) {
     return {
+      survival: state.survival,
       visualTheme: state.visualTheme,
       arenaWidth: state.arenaWidth,
       arenaHeight: state.arenaHeight,
@@ -668,6 +703,7 @@ export const arenaSurvivorServerGame: ServerGame<
       kills: state.kills,
       players: state.players.map(toPublicPlayer),
       difficultyTier: state.difficultyTier,
+      damageEvents: state.damageEvents ?? [],
       enemies: state.enemies.map(toPublicEnemy),
       projectiles: state.projectiles.map(toPublicProjectile),
       pickups: state.pickups.map(toPublicPickup),

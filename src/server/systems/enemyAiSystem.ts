@@ -1,4 +1,5 @@
 import { createArenaSurvivorProjectile } from "../factories/createProjectile.js";
+import { moveThroughFrostfire, steerAroundFrostfire } from "../../survivalWorld.js";
 import type { ArenaSurvivorRuntimePlayerState, ArenaSurvivorRuntimeState } from "../arenaSurvivorState.js";
 import { distanceSquared, normalizeVector } from "../arenaSurvivorState.js";
 
@@ -102,6 +103,7 @@ export function applyEnemyAiSystem(
         }
       }
 
+      if (state.survival) moveDirection = steerAroundFrostfire(enemy.x, enemy.y, moveDirection.x, moveDirection.y, enemy.radius);
       const nextVx = moveDirection.x * moveSpeed;
       const nextVy = moveDirection.y * moveSpeed;
       let shootCooldownRemainingMs = nextCooldown;
@@ -140,13 +142,13 @@ export function applyEnemyAiSystem(
         }
       }
 
+      const point = state.survival ? moveThroughFrostfire(enemy.x, enemy.y, enemy.x + nextVx * deltaSeconds, enemy.y + nextVy * deltaSeconds, enemy.radius) : { x: enemy.x + nextVx * deltaSeconds, y: enemy.y + nextVy * deltaSeconds };
       return {
         ...enemy,
         shootCooldownRemainingMs,
-        vx: nextVx,
-        vy: nextVy,
-        x: enemy.x + nextVx * deltaSeconds,
-        y: enemy.y + nextVy * deltaSeconds
+        vx: (point.x - enemy.x) / deltaSeconds,
+        vy: (point.y - enemy.y) / deltaSeconds,
+        ...point
       };
     })
   };

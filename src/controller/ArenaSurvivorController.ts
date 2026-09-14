@@ -54,6 +54,7 @@ interface ShopOfferModel {
 }
 
 interface ArenaSurvivorModernShopLayoutModel {
+  survival?: { phase: string; cores: number; level: number };
   kind: "arena_survivor_modern_shop";
   title: string;
   subtitle?: string;
@@ -116,7 +117,7 @@ interface VirtualJoystickLayoutModel {
   subtitle?: string;
   helperText?: string;
   minimal?: boolean;
-  stickPlacement?: "center" | "bottom";
+  stickPlacement?: "center" | "bottom" | "lower-middle";
   disabled: boolean;
   accentColor?: string;
   resetKey: string;
@@ -407,6 +408,7 @@ function buildArenaSurvivorJoystickModel(
   const language = context.state.room?.language;
   const en = language === "en";
   const running =
+    !state?.survival?.pause &&
     context.state.game?.phase === "playing" &&
     Boolean(player?.alive) &&
     state?.result.outcome === "running";
@@ -420,8 +422,8 @@ function buildArenaSurvivorJoystickModel(
     title: player?.name ?? "Arena Survivor",
     minimal: true,
     // Thumb zone: the stick sits at the lower screen edge while playing.
-    stickPlacement: "bottom",
-    subtitle: running
+    stickPlacement: "lower-middle",
+    subtitle: player?.respawnAtMs && state?.survival ? `Respawn ${Math.max(0, Math.ceil((player.respawnAtMs - state.elapsedMs) / 1000))}s` : running
       ? en
         ? "Move freely. Auto-fire is active."
         : "Bewege dich frei. Automatische Schuesse laufen."
@@ -445,7 +447,8 @@ function buildArenaSurvivorJoystickModel(
       { label: "Material", value: `${player?.materials ?? 0}` },
       { label: "Status", value: formatStatus(player, state, en), highlighted: true },
       { label: en ? "Time" : "Zeit", value: timeText },
-      { label: en ? "Wave" : "Welle", value: `${state?.waveNumber ?? 1}` }
+      { label: state?.survival ? (en ? "Intensity" : "Intensitaet") : en ? "Wave" : "Welle", value: `${state?.waveNumber ?? 1}` },
+      ...(state?.survival ? [{ label: "Cores", value: `${player?.evolutionCores ?? 0}` }] : [])
     ],
     onMoveChange: (moveX, moveY) => {
       if (!playerId) {
@@ -463,8 +466,17 @@ export function buildArenaSurvivorControllerModel(
   const gameState = (context.state.game?.state ?? null) as ArenaSurvivorState | null;
   const currentPlayer = resolveCurrentPlayer(context, gameState);
   const controllerPhase = context.state.game?.phase;
+  if (gameState?.survival && gameState.result.outcome !== "running" && currentPlayer) {
+    const model = buildArenaSurvivorShopModel(context, gameState, currentPlayer);
+    model.survival = { phase: "result", cores: currentPlayer.evolutionCores ?? 0, level: gameState.survival.level };
+    model.title = gameState.result.title;
+    model.helperText = context.state.room?.language === "en" ? "Start a new run or return to setup on the host." : "Starte am Host einen neuen Run oder kehre zum Setup zurueck.";
+    model.offers = []; model.ready = undefined; model.reroll = undefined;
+    model.onSellWeapon = undefined; model.onCombineWeapon = undefined; model.disabled = true;
+    return model;
+  }
   const shouldShowShop =
-    Boolean(currentPlayer) &&
+    Boolean(currentPlayer) && !gameState?.survival?.pause &&
     (Boolean(currentPlayer?.shop.available) ||
       controllerPhase === "result" ||
       controllerPhase === "scoreboard" ||
@@ -475,5 +487,70 @@ export function buildArenaSurvivorControllerModel(
     return buildArenaSurvivorShopModel(context, gameState, currentPlayer);
   }
 
+  if (gameState?.survival?.pause && currentPlayer) {
+    return buildSurvivalPauseModel(context, gameState, currentPlayer);
+  }
+
   return buildArenaSurvivorJoystickModel(context, gameState, currentPlayer);
+}
+
+function buildSurvivalPauseModel(context: ControllerGameRenderContext, state: ArenaSurvivorState, player: ArenaSurvivorPlayerState): ArenaSurvivorModernShopLayoutModel {
+  const s = state.survival!;
+  const en = context.state.room?.language === "en";
+  const ready = s.readyPlayerIds.includes(player.playerId);
+  const model = buildArenaSurvivorShopModel(context, state, player);
+  model.survival = { phase: s.pause ?? "", cores: player.evolutionCores ?? 0, level: s.level };
+  model.title = s.pause === "victory" ? (en ? "Survival won!" : "Survival gewonnen!") : s.pause === "forge" ? "Evolution Forge" : s.pause === "level_up" ? `Level ${s.level}` : "Survival Shop";
+  model.subtitle = `${en ? "Personal cores" : "Eigene Cores"}: ${player.evolutionCores ?? 0}`;
+  model.helperText = ready ? (en ? "Waiting for the team." : "Warte auf das Team.") : s.pause === "level_up" ? (en ? "Choose one of three powers. No timer." : "Waehle eines von drei Power-Ups. Ohne Zeitlimit.") : (en ? "Combat is paused for everyone. Finish when ready." : "Der Kampf pausiert fuer alle. Bestaetige, wenn du fertig bist.");
+  model.disabled = ready;
+  if (s.pause === "level_up") {
+    model.shopMode = "level_up";
+    model.levelUpChoicesRemaining = ready ? 0 : 1;
+    model.reroll = undefined;
+    model.onSellWeapon = undefined;
+    model.onCombineWeapon = undefined;
+    model.loadout = undefined;
+  }
+  model.ready = s.pause === "shop" || s.pause === "forge" ? {
+    currentPlayerReady: ready, readyCount: s.readyPlayerIds.length, playerCount: s.participantIds.length,
+    language: context.state.room?.language, label: en ? "Continue" : "Fortsetzen", description: model.helperText,
+    onToggleReady: () => context.onInput({ type: "survival:ready", playerId: player.playerId, sentAt: Date.now() })
+  } : undefined;
+  if (s.pause === "chest") {
+    const reward = s.chestReward;
+    const ownsReward = reward?.playerId === player.playerId;
+    model.title = en ? "Chest loot" : "Kistenfund";
+    model.helperText = ownsReward
+      ? (en ? "Keep the reward or salvage it for gold. Combat resumes after your choice." : "Fund behalten oder fuer Gold verwerten. Nach deiner Wahl geht es weiter.")
+      : (en ? "A teammate is choosing their chest reward." : "Ein Mitspieler entscheidet ueber seinen Kistenfund.");
+    model.shopMode = "level_up"; model.loadout = undefined; model.reroll = undefined;
+    model.onSellWeapon = undefined; model.onCombineWeapon = undefined; model.disabled = !ownsReward;
+    const loot = reward?.offer;
+    model.offers = ownsReward && reward ? [
+      { ...(loot ? enrichArenaSurvivorShopOffers([loot], state.visualTheme)[0] : {}), id: `${reward.id}:take`,
+        kind: loot?.kind ?? "upgrade", title: loot ? `${en ? "Keep" : "Behalten"}: ${loot.title}` : (en ? "Keep Evolution Core" : "Evolution Core behalten"),
+        description: loot?.description ?? (en ? "One personal core for the Forge." : "Ein eigener Core fuer die Forge."),
+        iconPath: loot ? resolveArenaSurvivorShopIconPath("weapon", loot.weaponId!, state.visualTheme) : "/arena-survivor/themes/frostfire-saga/upgrades/core.svg",
+        targetLevel: loot?.targetLevel ?? 1, cost: 0, affordable: true, purchased: false },
+      { id: `${reward.id}:salvage`, kind: "upgrade", title: en ? `Salvage: +${reward.salvageGold} gold` : `Verwerten: +${reward.salvageGold} Gold`,
+        description: en ? "Receive gold instead of this reward." : "Erhalte Gold anstelle dieses Fundes.", iconPath: "/arena-survivor/themes/frostfire-saga/upgrades/gold.svg", targetLevel: 1, cost: 0, affordable: true, purchased: false }
+    ] : [];
+  }
+  if (s.pause === "forge" || s.pause === "victory") {
+    model.reroll = undefined; model.onSellWeapon = undefined; model.onCombineWeapon = undefined;
+    model.shopMode = "level_up";
+    model.offers = s.pause === "victory" ? [true, false].map(continueRun => ({
+      id: continueRun ? "endless" : "finish", kind: "upgrade" as const, title: continueRun ? "Continue Endless" : en ? "Finish run" : "Run abschliessen",
+      description: continueRun ? (en ? "Keep your build and keep fighting." : "Mit deinem Build weiterspielen.") : (en ? "Save the victory." : "Mit dem Sieg abschliessen."),
+      targetLevel: 1, cost: 0, affordable: !ready, purchased: false
+    })) : player.loadout.weapons.filter(w => w.level === 4 && !w.evolved).map(w => ({
+      id: w.weaponInstanceId, kind: "weapon" as const, weaponId: w.weaponId, title: `✦ ${w.displayName}`,
+      description: en ? "1 personal core · 2× damage, faster attacks, greater range" : "1 eigener Core · 2× Schaden, schnellere Angriffe, mehr Reichweite",
+      targetLevel: 4, cost: 0, affordable: (player.evolutionCores ?? 0) > 0, purchased: false,
+      iconPath: resolveArenaSurvivorShopIconPath("weapon", w.weaponId, state.visualTheme)
+    }));
+    model.onBuy = id => context.onInput(s.pause === "victory" ? { type: "survival:endless", playerId: player.playerId, sentAt: Date.now(), continueRun: id === "endless" } : { type: "survival:evolve", playerId: player.playerId, sentAt: Date.now(), weaponInstanceId: id });
+  }
+  return model;
 }

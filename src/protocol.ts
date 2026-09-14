@@ -59,6 +59,9 @@ export interface ArenaSurvivorShopRerollInput extends PlayerInput {
 }
 
 export type ArenaSurvivorInput =
+  | (PlayerInput & { type: "survival:ready" })
+  | (PlayerInput & { type: "survival:evolve"; weaponInstanceId: string })
+  | (PlayerInput & { type: "survival:endless"; continueRun: boolean })
   | ArenaSurvivorMoveInput
   | ArenaSurvivorShopBuyInput
   | ArenaSurvivorShopSellInput
@@ -184,6 +187,7 @@ export function resolveArenaSurvivorDifficultyTier(
 }
 
 export interface ArenaSurvivorConfigureLobbyHostAction {
+  mode?: "wave" | "survival";
   type: "configure-lobby";
   difficulty?: number;
   visualTheme?: ArenaSurvivorVisualTheme;
@@ -331,6 +335,7 @@ export interface ArenaSurvivorWeaponDefinition {
 }
 
 export interface ArenaSurvivorWeaponRuntimeState {
+  orbitHitAtMs?: Record<string, number>;
   weaponInstanceId: string;
   weaponId: string;
   level: number;
@@ -496,6 +501,7 @@ export interface ArenaSurvivorOwnedItemState {
 }
 
 export interface ArenaSurvivorLoadoutWeaponState {
+  evolved?: boolean;
   weaponInstanceId: string;
   weaponId: string;
   displayName: string;
@@ -581,6 +587,9 @@ export interface ArenaSurvivorResultState {
 }
 
 export interface ArenaSurvivorPlayerState {
+  evolutionCores?: number;
+  deaths?: number;
+  respawnAtMs?: number;
   playerId: string;
   name: string;
   color: string;
@@ -610,7 +619,17 @@ export interface ArenaSurvivorPlayerState {
   runSummary: ArenaSurvivorRunSummary;
 }
 
+export interface ArenaSurvivorDamageEvent {
+  id: string;
+  atMs: number;
+  x: number;
+  y: number;
+  damage: number;
+}
+
 export interface ArenaSurvivorState {
+  damageEvents?: ArenaSurvivorDamageEvent[];
+  survival?: ArenaSurvivorSurvivalState;
   visualTheme: ArenaSurvivorVisualTheme;
   arenaWidth: number;
   arenaHeight: number;
@@ -633,4 +652,23 @@ export interface ArenaSurvivorState {
     projectileCount: number;
     alivePlayerCount: number;
   };
+}
+
+export interface ArenaSurvivorSurvivalState {
+  level: number;
+  experience: number;
+  experienceToNextLevel: number;
+  pause: "level_up" | "shop" | "forge" | "victory" | "chest" | null;
+  chestReward?: { id: string; playerId: string; offer?: ArenaSurvivorShopOfferState; core: boolean; salvageGold: number };
+  readyPlayerIds: string[];
+  participantIds: string[];
+  won: boolean;
+  endless: boolean;
+  nextShopMs: number;
+  nextForgeMs: number;
+  nextChestMs: number;
+  nextBossMs: number;
+  finalBossId?: string;
+  maxGroupDistance: number;
+  objectives: Array<{ id: string; kind: "shop" | "forge" | "chest" | "rare_chest" | "boss"; x: number; y: number; enemyId?: string }>;
 }

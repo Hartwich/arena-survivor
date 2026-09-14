@@ -76,6 +76,7 @@ export const arenaSurvivorConfig: ArenaSurvivorConfig = {
 };
 
 export const arenaSurvivorRoomSettingKeys = {
+  mode: "arenaSurvivorMode",
   visualTheme: "arenaSurvivorVisualTheme",
   difficultyTier: "arenaSurvivorDifficultyTier",
   setupConfirmed: "arenaSurvivorSetupConfirmed"

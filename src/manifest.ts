@@ -26,6 +26,16 @@ export const arenaSurvivorManifest = {
     fields: [
       {
         kind: "select",
+        id: "mode",
+        settingKey: "arenaSurvivorMode",
+        actionKey: "mode",
+        label: "Modus / Mode",
+        description: "Wave: Wellen und Shops. Survival: 20 Minuten in der grossen Frostfire-Welt.",
+        options: [{ id: "wave", label: "Wave" }, { id: "survival", label: "Survival · Frostfire Saga" }],
+        defaultValue: "wave"
+      },
+      {
+        kind: "select",
         id: "visualTheme",
         settingKey: arenaSurvivorRoomSettingKeys.visualTheme,
         actionKey: "visualTheme",
