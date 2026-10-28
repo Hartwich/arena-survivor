@@ -10,12 +10,13 @@ export function applyMovementSystem(
     return state;
   }
 
-  const deltaSeconds = Math.max(0.001, deltaMs / 1000);
+  if (deltaMs <= 0) return state;
+  const deltaSeconds = deltaMs / 1000;
 
   const positions = state.players.map(p => ({ ...p }));
   return {
     ...state,
-    players: state.players.map((player, index) => {
+    players: state.players.map((player) => {
       if (!player.alive) {
         return player;
       }
@@ -50,7 +51,8 @@ export function applyMovementSystem(
         if (positions.some(peer => peer.alive && peer.playerId !== player.playerId && Math.hypot(nextX - peer.x, nextY - peer.y) > Math.max(state.survival!.maxGroupDistance, Math.hypot(player.x - peer.x, player.y - peer.y)) + 0.001)) {
           nextX = player.x; nextY = player.y;
         }
-        positions[index] = { ...player, x: nextX, y: nextY };
+        // Every player uses the same start-of-tick positions. Updating this
+        // array in player order made the tether asymmetric and caused jitter.
       }
       return {
         ...player,
@@ -58,7 +60,8 @@ export function applyMovementSystem(
         y: nextY,
         vx: (nextX - player.x) / deltaSeconds,
         vy: (nextY - player.y) / deltaSeconds,
-        facingAngleRad: -Math.PI / 2
+        facingAngleRad: moveVector.magnitude > 0.001
+          ? Math.atan2(moveVector.y, moveVector.x) : player.facingAngleRad
       };
     })
   };

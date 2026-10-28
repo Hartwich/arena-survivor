@@ -10,6 +10,13 @@ Co-op arena survival game for Open Party Lab with character choices, waves, and 
 
 Beta. The survival loop, character choice, and lobby setup are already good to play locally. Still needs deeper progression, balancing, and enemy/readability passes before a stable release.
 
+The October combat/readability pass revises weapon budgets, additive percentage
+stats, armor, critical hits and life-steal. Enemy speed is bounded, party pressure
+scales linearly, late level-ups grow stronger and projectiles use swept contacts
+with one hit per target. Smaller sprites and wider, stable host views improve
+arena readability. See [balance changes and verification limits](docs/balance-rework.md)
+for details; physical-device playtesting and final balance remain open.
+
 ## Visual Themes
 
 The host can select the complete art set during run setup:

@@ -4,7 +4,8 @@ import { arenaSurvivorConfig } from "../arenaSurvivorConfig.js";
 import { createArenaSurvivorEnemy } from "../factories/createEnemy.js";
 import type { ArenaSurvivorRuntimeSpawnIndicatorState, ArenaSurvivorRuntimeState } from "../arenaSurvivorState.js";
 import { createSeededRandom, distanceSquared } from "../arenaSurvivorState.js";
-import { resolveArenaSurvivorDifficulty } from "../difficulty/arenaSurvivorDifficulty.js";
+import { resolveArenaSurvivorDifficulty, resolveArenaSurvivorSurvivalDifficulty } from "../difficulty/arenaSurvivorDifficulty.js";
+import { arenaSurvivorBalance } from "../arenaSurvivorBalance.js";
 import { arenaSurvivorEnemyDefinitionsById } from "../definitions/enemyDefinitions.js";
 import { resolveArenaSurvivorBossWave } from "../directors/arenaSurvivorBossDirector.js";
 import {
@@ -187,7 +188,7 @@ function spawnDueIndicators(state: ArenaSurvivorRuntimeState): ArenaSurvivorRunt
 
   const availableEnemySlots = Math.max(
     0,
-    (state.survival ? 180 : arenaSurvivorConfig.maxActiveEnemies) - state.enemies.length
+    (state.survival ? arenaSurvivorBalance.survivalEnemyLimit : arenaSurvivorConfig.maxActiveEnemies) - state.enemies.length
   );
   const spawnableIndicators = dueIndicators.slice(0, availableEnemySlots);
 
@@ -282,21 +283,10 @@ function scheduleRegularSpawnIndicator(
   const enemyPick = pickArenaSurvivorEnemyDefinition(effectiveWave, spawnPoint.seed, {
     preferStrongestUnlocked
   });
-  const wavesSinceUnlock = Math.max(0, effectiveWave - enemyPick.definition.minWave);
-  const waveHpMultiplier =
-    1 +
-    wavesSinceUnlock *
-      Math.max(0, arenaSurvivorConfig.difficultyEnemyHpMultiplierPerRound - 1);
-  const hpMultiplier = waveHpMultiplier * difficulty.enemyHpMultiplier;
-  const baseMoveSpeed =
-    enemyPick.definition.moveSpeed +
-    wavesSinceUnlock * arenaSurvivorConfig.difficultyEnemyWaveSpeedBonus;
-  const baseContactDamage =
-    enemyPick.definition.contactDamage +
-    Math.floor(
-      wavesSinceUnlock /
-        arenaSurvivorConfig.difficultyEnemyContactDamageIncreaseEveryRounds
-    );
+  // One wave curve for the entire roster, including newly unlocked enemies.
+  const hpMultiplier = difficulty.enemyHpMultiplier;
+  const baseMoveSpeed = enemyPick.definition.moveSpeed;
+  const baseContactDamage = enemyPick.definition.contactDamage;
 
   return {
     indicator: createSpawnIndicator(enemyPick.definition.id, spawnPoint.x, spawnPoint.y, spawnAtMs, {
@@ -314,7 +304,7 @@ export function applySpawnSystem(state: ArenaSurvivorRuntimeState): ArenaSurvivo
     return state;
   }
 
-  const difficulty = resolveArenaSurvivorDifficulty(
+  const difficulty = state.survival ? resolveArenaSurvivorSurvivalDifficulty(state.elapsedMs, state.players.length, state.difficultyTier) : resolveArenaSurvivorDifficulty(
     state.waveNumber,
     state.players.length,
     state.difficultyTier
@@ -323,15 +313,6 @@ export function applySpawnSystem(state: ArenaSurvivorRuntimeState): ArenaSurvivo
     state.waveNumber,
     difficulty.spawnBurstBonus
   );
-  if (state.survival) {
-    const minutes = state.elapsedMs / 60_000;
-    const pressure = 1 + Math.max(0, state.difficultyTier - 3) * 0.25;
-    difficulty.enemyHpMultiplier *= 1 + minutes * 0.12 * pressure;
-    difficulty.enemyDamageMultiplier *= 1 + minutes * 0.07 * pressure;
-    difficulty.enemySpeedMultiplier *= 1 + Math.min(0.4, minutes * 0.025 * pressure);
-    difficulty.maxEnemiesOnScreen = Math.min(180, Math.round((24 + Math.floor(minutes / 2) * 18 + (state.players.length - 1) * 5) * pressure));
-    difficulty.enemySpawnIntervalMs = Math.max(140, (950 - state.elapsedMs / 1200) / pressure);
-  }
   const bossWave = state.survival ? null : resolveArenaSurvivorBossWave(state.waveNumber);
   let nextState = spawnDueIndicators(state);
   if (state.survival && nextState.nextEnemySpawnAtMs < state.elapsedMs - 2000) {

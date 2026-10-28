@@ -10,17 +10,15 @@ import type {
 } from "../arenaSurvivorState.js";
 import type { ArenaSurvivorCollisionReport } from "./collisionSystem.js";
 import { awardArenaSurvivorEnemyExperience } from "../progression/arenaSurvivorProgression.js";
+import { arenaSurvivorBalance, resolveArmorDamage } from "../arenaSurvivorBalance.js";
+import { applyLifeSteal } from "./lifeSteal.js";
 
 function resolveContactDamage(rawDamage: number, armor: number): number {
-  if (armor >= 0) {
-    return Math.max(1, rawDamage * (100 / (100 + armor * 18)));
-  }
-
-  return rawDamage * (1 + Math.abs(armor) * 0.08);
+  return resolveArmorDamage(rawDamage, armor);
 }
 
 function rollDodge(dodgePct: number, seed: number): { dodged: boolean; seed: number } {
-  const chance = Math.min(70, Math.max(0, dodgePct)) / 100;
+  const chance = Math.min(arenaSurvivorBalance.maxDodgePct, Math.max(0, dodgePct)) / 100;
 
   if (chance <= 0) {
     return { dodged: false, seed };
@@ -64,7 +62,7 @@ export function applyDamageSystem(
     const projectile = projectilesById.get(hit.projectileId);
     const enemy = enemiesById.get(hit.enemyId);
 
-    if (!projectile || !enemy || !enemy.alive) {
+    if (!projectile || !projectile.alive || !enemy || !enemy.alive || projectile.hitEnemyIds?.includes(enemy.id)) {
       continue;
     }
 
@@ -74,12 +72,11 @@ export function applyDamageSystem(
     const owner = playersById.get(projectile.ownerId);
 
     if (owner) {
-      const lifeStealAmount =
-        appliedDamage * (Math.max(0, owner.stats.lifeStealPct) / 400);
+      const healing = applyLifeSteal(owner, state.elapsedMs, nextSeed);
+      nextSeed = healing.seed;
 
       playersById.set(owner.playerId, {
-        ...owner,
-        hp: Math.min(owner.maxHp, owner.hp + lifeStealAmount),
+        ...healing.player,
         runStats: {
           ...owner.runStats,
           hitsLanded: owner.runStats.hitsLanded + 1,
@@ -98,12 +95,14 @@ export function applyDamageSystem(
       projectilesById.set(projectile.id, {
         ...projectile,
         remainingPierce: 0,
+        hitEnemyIds: [...(projectile.hitEnemyIds ?? []), enemy.id],
         alive: false
       });
     } else {
       projectilesById.set(projectile.id, {
         ...projectile,
-        remainingPierce: projectile.remainingPierce - 1
+        remainingPierce: projectile.remainingPierce - 1,
+        hitEnemyIds: [...(projectile.hitEnemyIds ?? []), enemy.id]
       });
     }
 
@@ -234,7 +233,7 @@ export function applyDamageSystem(
     players: state.players
       .map((player) => playersById.get(player.playerId) ?? player),
     enemies: [...enemiesById.values()].filter((enemy) => enemy.alive),
-    projectiles: [...projectilesById.values()].filter((projectile) => projectile.alive),
+    projectiles: [...projectilesById.values()].filter((projectile) => projectile.alive && !projectile.expiresAfterStep),
     pickups
   };
 }

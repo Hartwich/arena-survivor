@@ -24,7 +24,7 @@ const levelBonusDefinitions: ArenaSurvivorLevelBonusDefinition[] = [
   { id: "ranged-power", title: { de: "Fernkampfkraft", en: "Ranged power" }, description: { de: "+3% Fernkampfkraft", en: "+3% ranged power" }, detail: { de: "Kraft", en: "Power" }, modifiers: { rangedPowerPct: 3 } },
   { id: "magic-power", title: { de: "Magiekraft", en: "Magic power" }, description: { de: "+3% Magiekraft", en: "+3% magic power" }, detail: { de: "Kraft", en: "Power" }, modifiers: { magicPowerPct: 3 } },
   { id: "damage", title: { de: "Mehr Schaden", en: "More Damage" }, description: { de: "+3% Schaden", en: "+3% damage" }, detail: { de: "Schaden", en: "Damage" }, modifiers: { damagePct: 3 } },
-  { id: "range", title: { de: "Mehr Reichweite", en: "More Range" }, description: { de: "+20% Waffenreichweite", en: "+20% weapon range" }, detail: { de: "Reichweite", en: "Range" }, modifiers: { weaponRangePct: 20 } },
+  { id: "range", title: { de: "Mehr Reichweite", en: "More Range" }, description: { de: "+8% Waffenreichweite", en: "+8% weapon range" }, detail: { de: "Reichweite", en: "Range" }, modifiers: { weaponRangePct: 8 } },
   { id: "crit", title: { de: "Kritische Chance", en: "Critical Chance" }, description: { de: "+1% kritische Trefferchance", en: "+1% critical hit chance" }, detail: { de: "Krit", en: "Crit" }, modifiers: { critChancePct: 1 } },
   { id: "attack-speed", title: { de: "Schnellere Angriffe", en: "Faster Attacks" }, description: { de: "+3% Angriffsgeschwindigkeit", en: "+3% attack speed" }, detail: { de: "Angriffstempo", en: "Attack speed" }, modifiers: { attackSpeedPct: 3 } },
   { id: "max-health", title: { de: "Mehr Leben", en: "More Health" }, description: { de: "+5 maximales Leben", en: "+5 maximum health" }, detail: { de: "Max. Leben", en: "Max health" }, modifiers: { maxHp: 5 } },
@@ -49,21 +49,30 @@ export function createArenaSurvivorLevelUpShopState(
     nextSeed = random.seed;
     const definitionIndex = Math.min(remainingDefinitions.length - 1, Math.floor(random.value * remainingDefinitions.length));
     const [definition] = remainingDefinitions.splice(definitionIndex, 1);
+    // Later level-ups offer meaningful progression instead of the same tiny
+    // bonus forever. One tier every five levels, up to four, in both modes.
+    const awardedLevel = Math.max(1, player.level - player.pendingLevelUpChoices + 1);
+    const tier = Math.min(4, 1 + Math.floor((awardedLevel - 1) / 5));
+    const modifiers = Object.fromEntries(Object.entries(definition.modifiers)
+      .map(([key, value]) => [key, value * tier])) as ArenaSurvivorStatModifiers;
+    const description = definition.description[languageKey].replace(/\d+(?:[.,]\d+)?/, value =>
+      new Intl.NumberFormat(languageKey, { maximumFractionDigits: 2 })
+        .format(Number(value.replace(",", ".")) * tier));
 
     offers.push({
       id: `level-bonus:${player.level}:${player.pendingLevelUpChoices}:${definition.id}`,
       kind: "upgrade",
       title: definition.title[languageKey],
-      description: survival && definition.id === "range" ? (languageKey === "en" ? "+3% weapon range" : "+3% Waffenreichweite") : definition.description[languageKey],
+      description,
       cost: 0,
       affordable: true,
       purchased: false,
       targetLevel: player.level - player.pendingLevelUpChoices + 1,
       levelBonusId: definition.id,
-      levelBonusModifiers: survival && definition.id === "range" ? { weaponRangePct: 3 } : { ...definition.modifiers },
-      tags: [languageKey === "en" ? "Level bonus" : "Level-Bonus"],
-      summary: survival && definition.id === "range" ? "+3%" : definition.description[languageKey],
-      detailLines: [{ label: definition.detail[languageKey], value: survival && definition.id === "range" ? "+3%" : definition.description[languageKey] }]
+      levelBonusModifiers: modifiers,
+      tags: [languageKey === "en" ? "Level bonus" : "Level-Bonus", `${languageKey === "en" ? "Tier" : "Stufe"} ${tier}`],
+      summary: description,
+      detailLines: [{ label: definition.detail[languageKey], value: description }]
     });
   }
 

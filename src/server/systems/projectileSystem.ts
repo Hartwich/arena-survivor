@@ -8,7 +8,7 @@ export function applyProjectileSystem(
     return state;
   }
 
-  const deltaSeconds = Math.max(0.001, deltaMs / 1000);
+  const deltaSeconds = Math.max(0, deltaMs / 1000);
 
   return {
     ...state,
@@ -18,10 +18,14 @@ export function applyProjectileSystem(
           return projectile;
         }
 
-        const nextX = projectile.x + projectile.vx * deltaSeconds;
-        const nextY = projectile.y + projectile.vy * deltaSeconds;
+        const speed = Math.hypot(projectile.vx, projectile.vy);
+        const travelSeconds = speed > 0 ? Math.min(deltaSeconds,
+          Math.max(0, projectile.maxRange - projectile.travelledDistance) / speed,
+          Math.max(0, projectile.lifetimeMs - projectile.ageMs) / 1000) : deltaSeconds;
+        const nextX = projectile.x + projectile.vx * travelSeconds;
+        const nextY = projectile.y + projectile.vy * travelSeconds;
         const nextTravelledDistance =
-          projectile.travelledDistance + Math.hypot(projectile.vx, projectile.vy) * deltaSeconds;
+          projectile.travelledDistance + speed * travelSeconds;
         const nextAgeMs = projectile.ageMs + deltaMs;
         const stillAlive =
           nextAgeMs < projectile.lifetimeMs &&
@@ -33,11 +37,16 @@ export function applyProjectileSystem(
 
         return {
           ...projectile,
+          previousX: projectile.x,
+          previousY: projectile.y,
           x: nextX,
           y: nextY,
           ageMs: nextAgeMs,
           travelledDistance: nextTravelledDistance,
-          alive: stillAlive
+          // Keep the last travelled segment for collision detection this tick.
+          // The damage system retires it immediately after resolving contacts.
+          expiresAfterStep: !stillAlive,
+          alive: true
         };
       })
       .filter((projectile) => projectile.alive)

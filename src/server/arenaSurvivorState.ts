@@ -16,6 +16,7 @@ import type {
 } from "../protocol.js";
 
 export interface ArenaSurvivorRuntimePlayerState extends ArenaSurvivorPlayerState {
+  nextLifeStealAtMs?: number;
   moveInputX: number;
   moveInputY: number;
 }
@@ -26,6 +27,10 @@ export interface ArenaSurvivorRuntimeEnemyState extends ArenaSurvivorEnemyState 
 }
 
 export interface ArenaSurvivorRuntimeProjectileState extends ArenaSurvivorProjectileState {
+  previousX?: number;
+  previousY?: number;
+  hitEnemyIds?: string[];
+  expiresAfterStep?: boolean;
   spawnedAtMs: number;
 }
 

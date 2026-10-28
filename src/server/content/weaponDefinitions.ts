@@ -1,6 +1,7 @@
 import type { ArenaSurvivorWeaponDefinition } from "./types.js";
+import { applyWeaponBalance } from "./weaponBalance.js";
 
-export const arenaSurvivorWeaponDefinitions = [
+const weaponDefinitions = [
   {
     id: "rust-blade",
     name: "Rostklinge",
@@ -1257,6 +1258,8 @@ export const arenaSurvivorWeaponDefinitions = [
     ],
   },
 ] as const satisfies readonly ArenaSurvivorWeaponDefinition[];
+
+export const arenaSurvivorWeaponDefinitions: ArenaSurvivorWeaponDefinition[] = weaponDefinitions.map(applyWeaponBalance);
 
 export const arenaSurvivorWeaponDefinitionsById = Object.fromEntries(
   arenaSurvivorWeaponDefinitions.map((weapon) => [weapon.id, weapon])

@@ -129,7 +129,8 @@ function toPublicSpawnIndicator(
 }
 
 function toPublicPlayer(player: ArenaSurvivorRuntimePlayerState): ArenaSurvivorPlayerState {
-  const { moveInputX: _moveInputX, moveInputY: _moveInputY, ...publicPlayer } = player;
+  const { moveInputX: _moveInputX, moveInputY: _moveInputY,
+    nextLifeStealAtMs: _nextLifeStealAtMs, ...publicPlayer } = player;
   return publicPlayer;
 }
 

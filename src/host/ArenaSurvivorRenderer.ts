@@ -49,7 +49,7 @@ function resolvePlayerDisplayRadius(radius: number): number {
 }
 
 const MARSHMALLOW_PLAYER_SCALE = 0.86;
-const MARSHMALLOW_WEAPON_SCALE = 1.22;
+const MARSHMALLOW_WEAPON_SCALE = 1;
 
 const enemyVisualScaleByDefinition: Readonly<Record<string, number>> = {
   "slime-blob": 0.9,
@@ -109,6 +109,7 @@ function resolvePlayerPulseScale(playerId: string, elapsedMs: number): number {
 const enemyPulseParams = new Map<string, { phase: number; speedMs: number }>();
 
 function resolveEnemyPulseScale(enemyId: string, elapsedMs: number): number {
+  if (arenaSurvivorVisualConfig.enemy.pulseAmplitude === 0) return 1;
   let params = enemyPulseParams.get(enemyId);
 
   if (!params) {
@@ -132,7 +133,8 @@ function resolvePlayerVisualPosition(
   player: ArenaSurvivorState["players"][number],
   elapsedMs: number
 ): { x: number; y: number; bobOffset: number; pulseScale: number } {
-  const bobOffset = resolvePlayerBobOffset(player.playerId, elapsedMs);
+  const walking = Math.min(1, Math.hypot(player.vx, player.vy) / 60);
+  const bobOffset = resolvePlayerBobOffset(player.playerId, elapsedMs) * walking;
   const pulseScale = resolvePlayerPulseScale(player.playerId, elapsedMs);
 
   return {
@@ -657,12 +659,15 @@ export function resolveArenaSurvivorRenderMeta(
       Math.min(state.arenaWidth, state.arenaHeight) * arenaSurvivorVisualConfig.cameraPadding.ratio
     )
   );
-  const arenaFitZoom = Math.max(
+  const arenaFitZoom = Math.min(
     scene.scale.width / state.arenaWidth,
     scene.scale.height / state.arenaHeight
   );
-  const minZoom = state.survival ? Math.min(scene.scale.width, scene.scale.height) / (state.survival.maxGroupDistance + 320) : Math.max(arenaSurvivorVisualConfig.cameraPadding.minZoom, arenaFitZoom);
-  const maxZoom = Math.max(arenaSurvivorVisualConfig.cameraPadding.maxZoom, minZoom);
+  // Wave shows the entire arena at a constant scale. Survival keeps at least
+  // 900 world units vertically visible, even for a solo player or grouped team.
+  const maxZoom = state.survival ? scene.scale.height / 900 : arenaFitZoom;
+  const minZoom = state.survival ? Math.min(maxZoom,
+    Math.min(scene.scale.width, scene.scale.height) / (state.survival.maxGroupDistance + 320)) : arenaFitZoom;
   let centerX = state.arenaWidth / 2;
   let centerY = state.arenaHeight / 2;
   let zoom = 1;
@@ -687,6 +692,10 @@ export function resolveArenaSurvivorRenderMeta(
   }
 
   zoom = Phaser.Math.Clamp(zoom, minZoom, maxZoom);
+  if (!state.survival) {
+    centerX = state.arenaWidth / 2;
+    centerY = state.arenaHeight / 2;
+  }
 
   const worldViewWidth = scene.scale.width / zoom;
   const worldViewHeight = scene.scale.height / zoom;

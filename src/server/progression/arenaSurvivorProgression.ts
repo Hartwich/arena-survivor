@@ -10,8 +10,8 @@ export function resolveArenaSurvivorExperienceToNextLevel(level: number): number
   return Math.max(
     1,
     Math.round(
-      arenaSurvivorConfig.experienceToNextLevelBase *
-        Math.pow(arenaSurvivorConfig.experienceToNextLevelGrowth, safeLevel - 1)
+      arenaSurvivorConfig.experienceToNextLevelBase +
+        arenaSurvivorConfig.experienceToNextLevelGrowth * (safeLevel - 1)
     )
   );
 }
@@ -25,7 +25,7 @@ export function resolveArenaSurvivorEnemyExperienceReward(definitionId: string):
 
   const baseReward =
     arenaSurvivorConfig.experienceBaseReward +
-    Math.max(0, definition.minWave - 1) *
+    Math.floor(Math.max(0, definition.minWave - 1) / 4) *
       arenaSurvivorConfig.experienceRewardPerUnlockWave;
   const bossMultiplier = (definition.tags as readonly string[]).includes("boss")
     ? arenaSurvivorConfig.bossExperienceMultiplier

@@ -4,6 +4,7 @@ import { createEmptyShopState, createSeededRandom, type ArenaSurvivorRuntimeStat
 import { applyArenaSurvivorShopPurchase, applyArenaSurvivorShopSell, applyArenaSurvivorShopCombine, applyArenaSurvivorShopReroll, createArenaSurvivorShopStateForPlayer } from "./loadout/arenaSurvivorLoadout.js";
 import { createArenaSurvivorLevelUpShopState } from "./progression/arenaSurvivorLevelBonuses.js";
 import { resolveArenaSurvivorEnemyExperienceReward } from "./progression/arenaSurvivorProgression.js";
+import { resolveArenaSurvivorExperienceToNextLevel } from "./progression/arenaSurvivorProgression.js";
 import { createArenaSurvivorEnemy } from "./factories/createEnemy.js";
 import { createId } from "./utils/createId.js";
 import { frostfireWorld, isFrostfireWalkable } from "../survivalWorld.js";
@@ -12,7 +13,7 @@ import { createLoadoutWeaponState, createArenaSurvivorWeaponRuntimeStates, resol
 export const survivalDurationMs = 20 * 60_000;
 export const survivalWorld = { width: frostfireWorld.width, height: frostfireWorld.height, groupDistance: 620 };
 export function createSurvivalState(): ArenaSurvivorSurvivalState {
-  return { level: 1, experience: 0, experienceToNextLevel: 23, pause: null, readyPlayerIds: [], participantIds: [], won: false, endless: false,
+  return { level: 1, experience: 0, experienceToNextLevel: 18, pause: null, readyPlayerIds: [], participantIds: [], won: false, endless: false,
     nextShopMs: 180_000, nextForgeMs: 360_000, nextChestMs: 45_000, nextBossMs: 300_000,
     maxGroupDistance: survivalWorld.groupDistance, objectives: [] };
 }
@@ -204,7 +205,7 @@ export function resolveSurvivalCombat(state: State, before: State, now: number):
   }
   if (s.won && !s.endless) return openSurvivalPause(state, "victory");
   if (s.experience >= s.experienceToNextLevel) {
-    s.experience -= s.experienceToNextLevel; s.level++; s.experienceToNextLevel = Math.ceil((15 + (s.level - 1) * 10) * 1.5);
+    s.experience -= s.experienceToNextLevel; s.level++; s.experienceToNextLevel = Math.ceil(resolveArenaSurvivorExperienceToNextLevel(s.level) * 1.5);
     state.players.forEach(p => { p.level = s.level; p.experience = s.experience; p.experienceToNextLevel = s.experienceToNextLevel; p.pendingLevelUpChoices = 1; });
     return openSurvivalPause(state, "level_up");
   }

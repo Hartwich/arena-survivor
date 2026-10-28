@@ -46,15 +46,15 @@ export const arenaSurvivorVisualConfig: ArenaSurvivorVisualConfig = {
     maxZoom: 1.55
   },
   player: {
-    diameterScale: 1.65,
-    bobAmplitude: 2,
+    diameterScale: 1.25,
+    bobAmplitude: 1,
     bobSpeedMs: 200,
-    pulseAmplitude: 0.02,
+    pulseAmplitude: 0,
     pulseSpeedMs: 200
   },
   enemy: {
-    diameterScale: 1.38,
-    pulseAmplitude: 0.075,
+    diameterScale: 1.15,
+    pulseAmplitude: 0,
     pulseSpeedMs: 200,
     pulseSpeedVarianceMs: 60
   },

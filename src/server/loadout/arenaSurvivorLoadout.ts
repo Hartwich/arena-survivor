@@ -44,6 +44,7 @@ import {
 } from "../arenaSurvivorState.js";
 import { createId } from "../utils/createId.js";
 import { createArenaSurvivorLevelUpShopState } from "../progression/arenaSurvivorLevelBonuses.js";
+import { arenaSurvivorBalance, resolveAttackRate } from "../arenaSurvivorBalance.js";
 
 export interface ArenaSurvivorRunCarryResolution {
   continuedRun: boolean;
@@ -113,7 +114,8 @@ const arenaSurvivorWeaponOfferLevelChanceBands = {
 } as const;
 
 function resolveMultiplier(current: number, percentDelta = 0): number {
-  return current * Math.max(0.2, 1 + percentDelta / 100);
+  // Sum percentage points; item order must never alter the build's strength.
+  return current + percentDelta / 100;
 }
 
 function formatShopNumber(value: number, fractionDigits = 0): string {
@@ -607,7 +609,8 @@ export function resolveArenaSurvivorPlayerStats(
     applyModifiers(modifiers);
   }
 
-  const moveSpeed = Math.max(60, arenaSurvivorPlayerDefinition.moveSpeed * moveSpeedMultiplier);
+  const moveSpeed = Math.max(0, arenaSurvivorPlayerDefinition.moveSpeed * moveSpeedMultiplier);
+  attackSpeedMultiplier = resolveAttackRate(attackSpeedMultiplier - 1);
   const pickupRadius = Math.max(
     8,
     (arenaSurvivorPlayerDefinition.pickupRadius + pickupRadiusBonus) * pickupRadiusMultiplier
@@ -619,22 +622,22 @@ export function resolveArenaSurvivorPlayerStats(
     pickupRadius,
     maxHp,
     armor,
-    dodgePct: Math.min(70, Math.max(0, dodgePct)),
+    dodgePct: Math.min(arenaSurvivorBalance.maxDodgePct, Math.max(0, dodgePct)),
     luck,
     harvesting,
     hpRegen: Math.max(0, hpRegen),
     contactDamageTakenMultiplier: arenaSurvivorPlayerDefinition.contactDamageTakenMultiplier,
-    damageMultiplier,
-    projectileDamageMultiplier: damageMultiplier,
+    damageMultiplier: Math.max(0.05, damageMultiplier),
+    projectileDamageMultiplier: Math.max(0.05, damageMultiplier),
     projectileSpeedMultiplier: arenaSurvivorPlayerDefinition.projectileSpeedMultiplier,
     weaponRangeMultiplier: Math.max(0.2, weaponRangeMultiplier),
     attackSpeedMultiplier,
     autoFireRateMultiplier: attackSpeedMultiplier,
-    meleePowerMultiplier,
-    rangedPowerMultiplier,
-    magicPowerMultiplier,
-    elementalPowerMultiplier,
-    critChancePct,
+    meleePowerMultiplier: Math.max(0.05, meleePowerMultiplier),
+    rangedPowerMultiplier: Math.max(0.05, rangedPowerMultiplier),
+    magicPowerMultiplier: Math.max(0.05, magicPowerMultiplier),
+    elementalPowerMultiplier: Math.max(0.05, elementalPowerMultiplier),
+    critChancePct: Math.min(100, Math.max(0, critChancePct)),
     critDamageMultiplier,
     projectileCountBonus,
     pierceBonus,

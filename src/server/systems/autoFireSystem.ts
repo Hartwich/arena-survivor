@@ -1,4 +1,6 @@
 import { collectDamageEvents, recordDamageEvent } from "./damageEvents.js";
+import { resolveCriticalMultiplier, resolveWeaponCooldown } from "../arenaSurvivorBalance.js";
+import { applyLifeSteal } from "./lifeSteal.js";
 import { evolvedOrbit } from "../../evolvedOrbit.js";
 import {
   ARENA_SURVIVOR_MELEE_ARC_HALF_ANGLE_RAD,
@@ -185,13 +187,13 @@ export function applyAutoFireSystem(
         nextPlayer.stats,
         categoryMultiplier * elementalMultiplier
       );
-      const baseDamage =
-        levelDefinition.damage * nextPlayer.stats.damageMultiplier * weaponScalingMultiplier;
-      const critChance = Math.max(
+      const baseDamage = Math.max(1,
+        levelDefinition.damage * nextPlayer.stats.damageMultiplier * weaponScalingMultiplier);
+      const critChance = Math.min(1, Math.max(
         0,
         (nextPlayer.stats.critChancePct + (levelDefinition.critChancePct ?? 0)) / 100
-      );
-      const critScale = levelDefinition.critScale ?? 1;
+      ));
+      const critScale = resolveCriticalMultiplier(levelDefinition.critScale, nextPlayer.stats.critDamageMultiplier);
 
       if (
         orbiting || (definition.attackPattern === "melee_arc" &&
@@ -228,20 +230,16 @@ export function applyAutoFireSystem(
             nextSeed = critRoll.seed;
             const crit = critRoll.value <= critChance;
             const damage = crit
-              ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
+              ? baseDamage * critScale
               : baseDamage;
             const appliedDamage = Math.min(enemy.hp, damage);
             recordDamageEvent(damageEvents, state.elapsedMs, enemy, appliedDamage);
             const nextEnemyHp = enemy.hp - appliedDamage;
 
             nextEnemies[targetIndex] = { ...enemy, hp: nextEnemyHp, alive: nextEnemyHp > 0 };
-            nextPlayer = {
-              ...nextPlayer,
-              hp: Math.min(
-                nextPlayer.maxHp,
-                nextPlayer.hp + appliedDamage * (Math.max(0, nextPlayer.stats.lifeStealPct) / 400)
-              )
-            };
+            const healing = applyLifeSteal(nextPlayer, state.elapsedMs, nextSeed);
+            nextPlayer = healing.player;
+            nextSeed = healing.seed;
             hitsLandedThisTick += 1;
             damageDealtThisTick += appliedDamage;
 
@@ -345,7 +343,8 @@ export function applyAutoFireSystem(
       }
 
       const baseAngle = Math.atan2(targetEnemy.y - originY, targetEnemy.x - originX);
-      const cooldownMs = levelDefinition.cooldownMs / nextPlayer.stats.autoFireRateMultiplier;
+      const cooldownMs = resolveWeaponCooldown(levelDefinition.cooldownMs,
+        nextPlayer.stats.autoFireRateMultiplier, definition.category === "melee");
 
       if (definition.attackPattern === "melee_arc") {
         const rapidHitCount = Math.max(
@@ -387,7 +386,7 @@ export function applyAutoFireSystem(
         nextSeed = critRoll.seed;
         const crit = critRoll.value <= critChance;
         const damage = crit
-          ? baseDamage * nextPlayer.stats.critDamageMultiplier * critScale
+          ? baseDamage * critScale
           : baseDamage;
 
         nextProjectiles.push(

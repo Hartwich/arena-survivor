@@ -2,6 +2,7 @@ import { createArenaSurvivorProjectile } from "../factories/createProjectile.js"
 import { moveThroughFrostfire, steerAroundFrostfire } from "../../survivalWorld.js";
 import type { ArenaSurvivorRuntimePlayerState, ArenaSurvivorRuntimeState } from "../arenaSurvivorState.js";
 import { distanceSquared, normalizeVector } from "../arenaSurvivorState.js";
+import { createEnemySeparation } from "./enemySeparation.js";
 
 const RADIAL_BURST_PROJECTILE_COUNT = 12;
 const RADIAL_BURST_ENEMY_IDS = new Set(["crimson-overlord"]);
@@ -67,7 +68,9 @@ export function applyEnemyAiSystem(
     return state;
   }
 
-  const deltaSeconds = Math.max(0.001, deltaMs / 1000);
+  if (deltaMs <= 0) return state;
+  const deltaSeconds = deltaMs / 1000;
+  const separation = createEnemySeparation(state.enemies);
   const nextProjectiles = [...state.projectiles];
 
   return {
@@ -104,6 +107,10 @@ export function applyEnemyAiSystem(
       }
 
       if (state.survival) moveDirection = steerAroundFrostfire(enemy.x, enemy.y, moveDirection.x, moveDirection.y, enemy.radius);
+      const crowd = separation(enemy);
+      const combinedX = moveDirection.x + crowd.x, combinedY = moveDirection.y + crowd.y;
+      const length = Math.max(1, Math.hypot(combinedX, combinedY));
+      moveDirection = { x: combinedX / length, y: combinedY / length };
       const nextVx = moveDirection.x * moveSpeed;
       const nextVy = moveDirection.y * moveSpeed;
       let shootCooldownRemainingMs = nextCooldown;
