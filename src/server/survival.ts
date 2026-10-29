@@ -78,7 +78,7 @@ function finishRun(state: State, now: number, won: boolean): State {
     totalShotsFired: p.runStats.shotsFired, totalHitsLanded: p.runStats.hitsLanded, totalDamageTaken: p.runStats.damageTaken
   } }));
   const en = state.language === "en";
-  const title = won ? (en ? "Survival won" : "Survival gewonnen") : state.survival!.won ? (en ? "Endless ended · Survival won" : "Endless beendet · Survival gewonnen") : "Survival · Game Over";
+  const title = won ? (en ? "Survival won" : "Survival gewonnen") : state.survival!.won ? (en ? "Endless ended · Survival won" : "Endlos beendet · Survival gewonnen") : (en ? "Survival · Game Over" : "Survival · Spiel vorbei");
   return transitionRoundState({ ...state, result: { outcome: won ? "survived" : "defeated", title } }, "locked", now, { message: title });
 }
 export function handleSurvivalInput(state: State, input: ArenaSurvivorInput, now: number): State {

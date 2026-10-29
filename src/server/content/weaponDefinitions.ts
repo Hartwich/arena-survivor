@@ -218,7 +218,7 @@ const weaponDefinitions = [
         critScale: 2,
         damageScaling: { meleePower: 1 },
         knockback: 0,
-        description: "Lv. 2: 25 Schaden und etwas sicherere Reichweite.",
+        description: "Lv. 2: 23 Schaden und etwas sicherere Reichweite.",
       },
       {
         level: 3,
@@ -231,7 +231,7 @@ const weaponDefinitions = [
         critScale: 2,
         damageScaling: { meleePower: 1 },
         knockback: 0,
-        description: "Lv. 3: starker Midgame-Stich mit 40 Schaden.",
+        description: "Lv. 3: starker Midgame-Stich mit 33 Schaden.",
       },
       {
         level: 4,
@@ -244,7 +244,7 @@ const weaponDefinitions = [
         critScale: 2,
         damageScaling: { meleePower: 1 },
         knockback: 0,
-        description: "Lv. 4: 60 Schaden und sehr hohe Reichweite.",
+        description: "Lv. 4: 46 Schaden und sehr hohe Reichweite.",
       },
     ],
   },
@@ -355,7 +355,7 @@ const weaponDefinitions = [
         critScale: 1.5,
         damageScaling: { meleePower: 1 },
         knockback: 0.12,
-        description: "Lv. 3: 50 Schaden mit hoher Crit-Wahrscheinlichkeit.",
+        description: "Lv. 3: 40 Schaden mit hoher Crit-Wahrscheinlichkeit.",
       },
       {
         level: 4,
@@ -368,7 +368,7 @@ const weaponDefinitions = [
         critScale: 1.5,
         damageScaling: { meleePower: 1 },
         knockback: 0.12,
-        description: "Lv. 4: schwerer Tank-Hit mit 70 Schaden.",
+        description: "Lv. 4: schwerer Tank-Hit mit 56 Schaden.",
       },
     ],
   },
@@ -716,7 +716,7 @@ const weaponDefinitions = [
         critScale: 2,
         damageScaling: { rangedPower: 1 },
         knockback: 0.08,
-        description: "Lv. 2: 20 Schaden und 10% Basis-Crit.",
+        description: "Lv. 2: 17 Schaden und 10% Basis-Crit.",
       },
       {
         level: 3,

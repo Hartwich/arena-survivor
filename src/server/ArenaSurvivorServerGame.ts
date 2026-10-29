@@ -1,3 +1,4 @@
+import { localizeArenaSurvivorPlayer, localizeArenaSurvivorPresentation } from "../contentText.js";
 import {
   createBaseRoundState,
   resolveRoundPhaseTimings,
@@ -128,10 +129,10 @@ function toPublicSpawnIndicator(
   return publicIndicator;
 }
 
-function toPublicPlayer(player: ArenaSurvivorRuntimePlayerState): ArenaSurvivorPlayerState {
+function toPublicPlayer(player: ArenaSurvivorRuntimePlayerState, language?: "de" | "en"): ArenaSurvivorPlayerState {
   const { moveInputX: _moveInputX, moveInputY: _moveInputY,
     nextLifeStealAtMs: _nextLifeStealAtMs, ...publicPlayer } = player;
-  return publicPlayer;
+  return localizeArenaSurvivorPlayer(publicPlayer, language);
 }
 
 function toPublicEnemy(enemy: ArenaSurvivorRuntimeEnemyState): ArenaSurvivorEnemyRenderState {
@@ -180,7 +181,7 @@ function toSlimControllerState(
   players: ArenaSurvivorPlayerState[]
 ): ArenaSurvivorPublicState {
   return {
-    survival: state.survival,
+    survival: state.survival?.chestReward ? { ...state.survival, chestReward: localizeArenaSurvivorPresentation(state.survival.chestReward, state.language) } : state.survival,
     visualTheme: state.visualTheme,
     arenaWidth: state.arenaWidth,
     arenaHeight: state.arenaHeight,
@@ -693,7 +694,7 @@ export const arenaSurvivorServerGame: ServerGame<
   },
   toPublicState(state) {
     return {
-      survival: state.survival,
+      survival: state.survival?.chestReward ? { ...state.survival, chestReward: localizeArenaSurvivorPresentation(state.survival.chestReward, state.language) } : state.survival,
       visualTheme: state.visualTheme,
       arenaWidth: state.arenaWidth,
       arenaHeight: state.arenaHeight,
@@ -702,7 +703,7 @@ export const arenaSurvivorServerGame: ServerGame<
       elapsedMs: state.elapsedMs,
       remainingMs: state.remainingMs,
       kills: state.kills,
-      players: state.players.map(toPublicPlayer),
+      players: state.players.map(player => toPublicPlayer(player, state.language)),
       difficultyTier: state.difficultyTier,
       damageEvents: state.damageEvents ?? [],
       enemies: state.enemies.map(toPublicEnemy),
@@ -719,10 +720,10 @@ export const arenaSurvivorServerGame: ServerGame<
   toControllerState(state) {
     // Fallback for controller sockets without a player id; the broadcaster
     // builds it on every emit, so it stays as small as the per-player variant.
-    return toSlimControllerState(state, state.players.map(toPublicPlayer));
+    return toSlimControllerState(state, state.players.map(player => toPublicPlayer(player, state.language)));
   },
   toControllerStateForPlayer(state, _context, playerId) {
     const ownPlayer = state.players.find((player) => player.playerId === playerId);
-    return toSlimControllerState(state, ownPlayer ? [toPublicPlayer(ownPlayer)] : []);
+    return toSlimControllerState(state, ownPlayer ? [toPublicPlayer(ownPlayer, state.language)] : []);
   }
 };

@@ -26,9 +26,9 @@ export function createSurvivalOverlay(scene: Phaser.Scene) {
       const s = state.survival; overlay.hidden = !s || state.result.outcome !== "running"; graphics.clear();
       if (overlay.hidden || !s) { props.forEach(p => p.setVisible(false)); names.forEach(p => p.setVisible(false)); return; }
       const en = language === "en";
-      const labels = { shop: "Shop", forge: "Forge", chest: en ? "Chest" : "Kiste", rare_chest: en ? "Rare chest" : "Seltene Kiste", boss: "Boss" };
+      const labels = { shop: "Shop", forge: en ? "Forge" : "Schmiede", chest: en ? "Chest" : "Kiste", rare_chest: en ? "Rare chest" : "Seltene Kiste", boss: "Boss" };
       const time = `${Math.floor(state.elapsedMs / 60000)}:${Math.floor(state.elapsedMs / 1000 % 60).toString().padStart(2, "0")}`;
-      const phase = s.pause === "chest" ? (en ? "Chest loot" : "Kistenfund") : s.pause === "level_up" ? "Level-Up" : s.pause === "victory" ? (en ? "Victory! Continue Endless?" : "Gewonnen! Weiter mit Endless?") : s.pause === "forge" ? "Evolution Forge" : s.pause === "shop" ? "Shop" : s.endless ? "Endless · ✓ Survival" : "Frostfire Survival";
+      const phase = s.pause === "chest" ? (en ? "Chest loot" : "Kistenfund") : s.pause === "level_up" ? "Level-Up" : s.pause === "victory" ? (en ? "Victory! Continue Endless?" : "Gewonnen! Endlos weiterspielen?") : s.pause === "forge" ? (en ? "Evolution Forge" : "Evolutionsschmiede") : s.pause === "shop" ? "Shop" : s.endless ? (en ? "Endless · ✓ Survival" : "Endlos · ✓ Survival") : "Frostfire Survival";
       status.textContent = `${phase} · ${time} · Lv. ${s.level} · XP ${s.experience}/${s.experienceToNextLevel}${s.pause && s.pause !== "chest" ? ` · ${s.readyPlayerIds.length}/${s.participantIds.length} ✓` : ""}`;
       xpFill.style.width = `${Math.min(100, s.experience / s.experienceToNextLevel * 100)}%`;
       const ctx = map.getContext("2d")!; ctx.clearRect(0, 0, 192, 144);

@@ -1,3 +1,4 @@
+import { arenaSurvivorText } from "./catalogText.js";
 import type { GameManifest } from "@open-party-lab/game-core";
 import { arenaSurvivorRoomSettingKeys } from "./server/arenaSurvivorConfig.js";
 import { arenaSurvivorCharacterDefinitions } from "./server/definitions/characterDefinitions.js";
@@ -10,6 +11,7 @@ import {
 
 export const arenaSurvivorManifest = {
   id: "arena-survivor",
+  translations: arenaSurvivorText,
   displayName: "Arena Survivor",
   description: "Ueberlebe in der Arena gegen immer neue Gegner.",
   minPlayers: 1,

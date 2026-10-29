@@ -1,3 +1,4 @@
+import { getArenaSurvivorContentText } from "../contentText.js";
 import type {
   ArenaSurvivorPlayerState,
   ArenaSurvivorShopOfferState,
@@ -245,7 +246,7 @@ function formatStatus(player: ArenaSurvivorPlayerState | null, state: ArenaSurvi
   return en ? "Active" : "Aktiv";
 }
 
-function resolvePlayerStats(player: ArenaSurvivorPlayerState | null): Array<{ label: string; value: string }> {
+function resolvePlayerStats(player: ArenaSurvivorPlayerState | null, language?: "de" | "en"): Array<{ label: string; value: string }> {
   if (!player) {
     return [];
   }
@@ -266,7 +267,7 @@ function resolvePlayerStats(player: ArenaSurvivorPlayerState | null): Array<{ la
     { label: "Harvest", value: `${Math.round(stats.harvesting ?? 0)}` },
     { label: "Life Steal", value: formatPercent(stats.lifeStealPct) },
     { label: "Regen", value: `${Math.round((stats.hpRegen ?? 0) * 10) / 10}` }
-  ];
+  ].map((stat) => ({ ...stat, label: getArenaSurvivorContentText(stat.label, language) }));
 }
 
 function buildArenaSurvivorShopModel(
@@ -297,7 +298,7 @@ function buildArenaSurvivorShopModel(
       ? en
         ? `${player.pendingLevelUpChoices} bonus ${player.pendingLevelUpChoices === 1 ? "choice" : "choices"} remaining`
         : `Noch ${player.pendingLevelUpChoices} Bonus-${player.pendingLevelUpChoices === 1 ? "Wahl" : "Wahlen"}`
-      : `${en ? "Wave" : "Welle"} ${state.waveNumber} | Material ${player.materials}`,
+      : `${en ? "Wave" : "Welle"} ${state.waveNumber} | ${en ? "Materials" : "Material"} ${player.materials}`,
     helperText:
       choosingLevelBonus
         ? en
@@ -373,7 +374,7 @@ function buildArenaSurvivorShopModel(
       }))
     },
     runSummary: choosingLevelBonus ? undefined : player.runSummary,
-    playerStats: resolvePlayerStats(player),
+    playerStats: resolvePlayerStats(player, language),
     offers: enrichArenaSurvivorShopOffers(player.shop.offers, state.visualTheme),
     onBuy: (offerId) => {
       if (!player.playerId) {
@@ -439,16 +440,16 @@ function buildArenaSurvivorJoystickModel(
     disabled: !running,
     accentColor: player?.color ?? context.state.player?.color ?? "#38bdf8",
     resetKey: `${context.state.game?.roundNumber ?? 0}:${context.state.game?.phase ?? "idle"}`,
-    centerLabel: "GO",
+    centerLabel: en ? "MOVE" : "LOS",
     stats: [
-      { label: "HP", value: `${formatRoundedHp(player?.hp)}/${formatRoundedHp(player?.maxHp)}` },
-      { label: "Lvl.", value: `${player?.level ?? 1}` },
-      { label: "EXP", value: `${Math.round(player?.experience ?? 0)}/${Math.round(player?.experienceToNextLevel ?? 1)}` },
-      { label: "Material", value: `${player?.materials ?? 0}` },
+      { label: en ? "HP" : "Leben", value: `${formatRoundedHp(player?.hp)}/${formatRoundedHp(player?.maxHp)}` },
+      { label: en ? "Lvl." : "Stufe", value: `${player?.level ?? 1}` },
+      { label: en ? "XP" : "EP", value: `${Math.round(player?.experience ?? 0)}/${Math.round(player?.experienceToNextLevel ?? 1)}` },
+      { label: en ? "Materials" : "Material", value: `${player?.materials ?? 0}` },
       { label: "Status", value: formatStatus(player, state, en), highlighted: true },
       { label: en ? "Time" : "Zeit", value: timeText },
       { label: state?.survival ? (en ? "Intensity" : "Intensitaet") : en ? "Wave" : "Welle", value: `${state?.waveNumber ?? 1}` },
-      ...(state?.survival ? [{ label: "Cores", value: `${player?.evolutionCores ?? 0}` }] : [])
+      ...(state?.survival ? [{ label: en ? "Cores" : "Kerne", value: `${player?.evolutionCores ?? 0}` }] : [])
     ],
     onMoveChange: (moveX, moveY) => {
       if (!playerId) {
@@ -500,8 +501,8 @@ function buildSurvivalPauseModel(context: ControllerGameRenderContext, state: Ar
   const ready = s.readyPlayerIds.includes(player.playerId);
   const model = buildArenaSurvivorShopModel(context, state, player);
   model.survival = { phase: s.pause ?? "", cores: player.evolutionCores ?? 0, level: s.level };
-  model.title = s.pause === "victory" ? (en ? "Survival won!" : "Survival gewonnen!") : s.pause === "forge" ? "Evolution Forge" : s.pause === "level_up" ? `Level ${s.level}` : "Survival Shop";
-  model.subtitle = `${en ? "Personal cores" : "Eigene Cores"}: ${player.evolutionCores ?? 0}`;
+  model.title = s.pause === "victory" ? (en ? "Survival won!" : "Survival gewonnen!") : s.pause === "forge" ? (en ? "Evolution Forge" : "Evolutionsschmiede") : s.pause === "level_up" ? `Level ${s.level}` : "Survival Shop";
+  model.subtitle = `${en ? "Personal cores" : "Eigene Kerne"}: ${player.evolutionCores ?? 0}`;
   model.helperText = ready ? (en ? "Waiting for the team." : "Warte auf das Team.") : s.pause === "level_up" ? (en ? "Choose one of three powers. No timer." : "Waehle eines von drei Power-Ups. Ohne Zeitlimit.") : (en ? "Combat is paused for everyone. Finish when ready." : "Der Kampf pausiert fuer alle. Bestaetige, wenn du fertig bist.");
   model.disabled = ready;
   if (s.pause === "level_up") {
@@ -529,8 +530,8 @@ function buildSurvivalPauseModel(context: ControllerGameRenderContext, state: Ar
     const loot = reward?.offer;
     model.offers = ownsReward && reward ? [
       { ...(loot ? enrichArenaSurvivorShopOffers([loot], state.visualTheme)[0] : {}), id: `${reward.id}:take`,
-        kind: loot?.kind ?? "upgrade", title: loot ? `${en ? "Keep" : "Behalten"}: ${loot.title}` : (en ? "Keep Evolution Core" : "Evolution Core behalten"),
-        description: loot?.description ?? (en ? "One personal core for the Forge." : "Ein eigener Core fuer die Forge."),
+        kind: loot?.kind ?? "upgrade", title: loot ? `${en ? "Keep" : "Behalten"}: ${loot.title}` : (en ? "Keep Evolution Core" : "Evolutionskern behalten"),
+        description: loot?.description ?? (en ? "One personal core for the Forge." : "Ein eigener Kern für die Schmiede."),
         iconPath: loot ? resolveArenaSurvivorShopIconPath("weapon", loot.weaponId!, state.visualTheme) : "/arena-survivor/themes/frostfire-saga/upgrades/core.png",
         targetLevel: loot?.targetLevel ?? 1, cost: 0, affordable: true, purchased: false },
       { id: `${reward.id}:salvage`, kind: "upgrade", title: en ? `Salvage: +${reward.salvageGold} gold` : `Verwerten: +${reward.salvageGold} Gold`,
@@ -541,12 +542,12 @@ function buildSurvivalPauseModel(context: ControllerGameRenderContext, state: Ar
     model.reroll = undefined; model.onSellWeapon = undefined; model.onCombineWeapon = undefined;
     model.shopMode = "level_up";
     model.offers = s.pause === "victory" ? [true, false].map(continueRun => ({
-      id: continueRun ? "endless" : "finish", kind: "upgrade" as const, title: continueRun ? "Continue Endless" : en ? "Finish run" : "Run abschliessen",
+      id: continueRun ? "endless" : "finish", kind: "upgrade" as const, title: continueRun ? (en ? "Continue Endless" : "Endlos weiterspielen") : en ? "Finish run" : "Run abschliessen",
       description: continueRun ? (en ? "Keep your build and keep fighting." : "Mit deinem Build weiterspielen.") : (en ? "Save the victory." : "Mit dem Sieg abschliessen."),
       targetLevel: 1, cost: 0, affordable: !ready, purchased: false
     })) : player.loadout.weapons.filter(w => w.level === 4 && !w.evolved).map(w => ({
       id: w.weaponInstanceId, kind: "weapon" as const, weaponId: w.weaponId, title: `✦ ${w.displayName}`,
-      description: en ? "1 personal core · 2× damage, faster attacks, greater range" : "1 eigener Core · 2× Schaden, schnellere Angriffe, mehr Reichweite",
+      description: en ? "1 personal core · 2× damage, faster attacks, greater range" : "1 eigener Kern · 2× Schaden, schnellere Angriffe, mehr Reichweite",
       targetLevel: 4, cost: 0, affordable: (player.evolutionCores ?? 0) > 0, purchased: false,
       iconPath: resolveArenaSurvivorShopIconPath("weapon", w.weaponId, state.visualTheme)
     }));
