@@ -1,5 +1,19 @@
 # Power-up PNG artwork
 
+## Asset delivery fix (2026-10-30)
+
+The nine additional Frostfire stat icons previously existed only under
+`public/controller`. Their root-relative URLs also need matching files under
+`public/host`: the combined server serves `/arena-survivor/...` from the host
+root, including requests originating from a `/controller/` page. Both roots
+now contain the complete upgrade set. Classic and Obsidian item artwork is
+also mirrored to the host root, and their level-up bonuses now use suitable
+existing item icons instead of missing icon mappings.
+
+`scripts/shop-assets.test.mjs` checks all offered bonus IDs and the entire
+weapon/item catalog across all four themes against both delivery roots,
+including PNG headers/dimensions and SVG markup.
+
 Generated with the built-in image generation tool. Final assets: `public/controller/arena-survivor/themes/frostfire-saga/upgrades/core.png` and `dodge.png`. Money uses the existing `pickups/material.png`.
 
 ## Core prompt

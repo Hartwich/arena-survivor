@@ -287,5 +287,16 @@ export function resolveArenaSurvivorLevelBonusIconPath(
     const aliases: Record<string, string> = { dodge: "move-speed", luck: "crit", harvesting: "max-health", pickup: "range", regen: "max-health", "crit-damage": "crit", "melee-power": "damage", "ranged-power": "attack-speed", "magic-power": "life-steal" };
     return `/arena-survivor/themes/${theme}/upgrades/${aliases[bonusId] ?? bonusId}.png`;
   }
-  return undefined;
+  // Classic/Obsidian have item artwork rather than dedicated upgrade files.
+  // Use the corresponding stat item so every level-up still has a real icon.
+  const itemByBonus: Record<string, string> = {
+    dodge: "runner-boots", luck: "lucky-charm", harvesting: "harvest-sprout",
+    pickup: "magnet-core", regen: "herbal-bandage", "crit-damage": "heavy-bullets",
+    "melee-power": "berserker-feather", "ranged-power": "scope-lens",
+    "magic-power": "arcane-crystal", damage: "power-bracelet", range: "glass-eye",
+    crit: "medal", "attack-speed": "trigger-glove", "max-health": "stone-heart",
+    armor: "iron-shell", "move-speed": "runner-boots", "life-steal": "vampire-brooch"
+  };
+  const itemId = itemByBonus[bonusId];
+  return itemId ? resolveArenaSurvivorShopIconPath("item", itemId, theme) : undefined;
 }
