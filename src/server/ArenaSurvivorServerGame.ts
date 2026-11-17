@@ -561,6 +561,9 @@ export const arenaSurvivorServerGame: ServerGame<
       }
     );
   },
+  onPause(state) {
+    return { ...state, players: state.players.map((player) => ({ ...player, moveInputX: 0, moveInputY: 0 })) };
+  },
   handleInput(state, input, context) {
     const playerIndex = state.players.findIndex((player) => player.playerId === input.playerId);
 
