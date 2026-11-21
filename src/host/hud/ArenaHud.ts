@@ -1,11 +1,12 @@
 import type { ArenaSurvivorPlayerState, ArenaSurvivorState } from "../../protocol.js";
+import type { SupportedLanguage } from "@open-party-lab/game-core";
 import {
   resolveArenaSurvivorCharacterPortraitPath,
   resolveArenaSurvivorShopIconPath
 } from "../../visualThemes.js";
 
 interface RoomSnapshot {
-  language?: "de" | "en";
+  language?: SupportedLanguage;
   players?: Array<{
     id: string;
     name: string;
@@ -410,7 +411,14 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
     }
 
     lastRunningSignature = runningSignature;
-    const en = room?.language === "en";
+    const language = room?.language ?? "de";
+    const words = {
+      de: { wave: "Welle", hp: "Leben", run: "Run-Statistik", report: "Wellenbericht", newRun: "Neuer Run", setup: "Zurück zum Setup", damage: "Schaden", accuracy: "Trefferquote", level: "Stufe", equipment: "Keine Ausrüstung" },
+      en: { wave: "Wave", hp: "HP", run: "Run statistics", report: "Wave report", newRun: "New run", setup: "Back to setup", damage: "Damage", accuracy: "Accuracy", level: "Level", equipment: "No equipment" },
+      es: { wave: "Oleada", hp: "Vida", run: "Estadísticas de partida", report: "Informe de oleada", newRun: "Nueva partida", setup: "Volver a la configuración", damage: "Daño", accuracy: "Precisión", level: "Nivel", equipment: "Sin equipo" },
+      fr: { wave: "Vague", hp: "PV", run: "Statistiques de partie", report: "Rapport de vague", newRun: "Nouvelle partie", setup: "Retour à la configuration", damage: "Dégâts", accuracy: "Précision", level: "Niveau", equipment: "Aucun équipement" },
+      "pt-BR": { wave: "Onda", hp: "PV", run: "Estatísticas da partida", report: "Relatório da onda", newRun: "Nova partida", setup: "Voltar à configuração", damage: "Dano", accuracy: "Precisão", level: "Nível", equipment: "Sem equipamento" }
+    }[language];
     metaBar.style.display = state?.survival ? "none" : "grid";
     const obsidianRelay = state?.visualTheme === "obsidian-relay";
     const frostfireSaga = state?.visualTheme === "frostfire-saga";
@@ -424,7 +432,7 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
       : 0;
 
     metaText.textContent = state
-      ? `${en ? "Wave" : "Welle"}: ${state.waveNumber}`
+      ? `${words.wave}: ${state.waveNumber}`
       : "Arena Survivor";
     roundProgressFill.style.width = `${Math.round(roundProgress * 100)}%`;
     roundProgressFill.style.background = obsidianRelay
@@ -483,11 +491,11 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
       card.title.textContent = player.name;
       card.title.title = `${player.name} (${player.character.name})`;
       card.materialBadge.textContent = state?.survival ? `M ${player.materials} · ◆ ${player.evolutionCores ?? 0}` : `M ${player.materials}`;
-      card.levelBadge.textContent = `${en ? "Lvl." : "Lvl."} ${player.level}`;
+      card.levelBadge.textContent = `${words.level.slice(0, 3)}. ${player.level}`;
       card.xpLabel.textContent = `EXP ${Math.round(player.experience)}/${Math.round(player.experienceToNextLevel)}`;
       if (card.xpLabel.parentElement) card.xpLabel.parentElement.style.display = state?.survival ? "none" : "block";
       card.xpFill.style.width = `${Math.round(experienceRatio * 100)}%`;
-      card.hpLabel.textContent = state?.survival && !player.alive && player.respawnAtMs !== undefined ? `Respawn ${Math.max(0, Math.ceil((player.respawnAtMs - state.elapsedMs) / 1000))}s` : `${en ? "HP" : "Leben"} ${formatRoundedHp(player.hp)}/${formatRoundedHp(player.maxHp)}`;
+      card.hpLabel.textContent = state?.survival && !player.alive && player.respawnAtMs !== undefined ? `Respawn ${Math.max(0, Math.ceil((player.respawnAtMs - state.elapsedMs) / 1000))}s` : `${words.hp} ${formatRoundedHp(player.hp)}/${formatRoundedHp(player.maxHp)}`;
       card.hpFill.style.width = `${Math.round(hpRatio * 100)}%`;
       card.hpFill.style.background = hpColor;
     }
@@ -527,13 +535,13 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
           ? "rgba(66, 30, 14, 0.9)"
           : "rgba(15, 23, 42, 0.88)";
     summaryEyebrow.textContent = defeated || state.survival
-      ? en ? "Run statistics" : "Run-Statistik"
-      : en ? "Wave report" : "Wellenbericht";
+      ? words.run
+      : words.report;
     summaryEyebrow.style.color = themeAccent;
     summaryTitle.textContent = state.result.title;
     summaryActions.style.display = defeated || state.survival ? "grid" : "none";
-    restartButton.textContent = en ? "New run" : "Neuer Run";
-    setupButton.textContent = en ? "Back to setup" : "Zurück zum Setup";
+    restartButton.textContent = words.newRun;
+    setupButton.textContent = words.setup;
     restartButton.style.background = themeAccent;
     restartButton.style.color = obsidianRelay ? "#04141d" : "#2b160c";
 
@@ -596,9 +604,9 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
         const runStats = [
           ["DPS", `${Math.round(damagePerSecond * 10) / 10}`],
           ["Kills", `${player.runSummary.totalKills}`],
-          [en ? "Damage" : "Schaden", `${Math.round(player.runSummary.totalDamageDealt)}`],
-          [en ? "Accuracy" : "Treffer", `${Math.round(accuracy * 100)}%`],
-          [en ? "Level" : "Level", `${player.level}`]
+          [words.damage, `${Math.round(player.runSummary.totalDamageDealt)}`],
+          [words.accuracy, `${Math.round(accuracy * 100)}%`],
+          [words.level, `${player.level}`]
         ];
         for (const [label, value] of runStats) {
           const stat = document.createElement("div");
@@ -639,7 +647,7 @@ export function createArenaHud(actions: ArenaHudActions): ArenaHud {
           const empty = document.createElement("span");
           empty.style.color = hudInk.muted;
           empty.style.fontSize = "12px";
-          empty.textContent = en ? "No equipment" : "Keine Ausrüstung";
+          empty.textContent = words.equipment;
           assetRow.appendChild(empty);
         }
         for (const asset of assets) {

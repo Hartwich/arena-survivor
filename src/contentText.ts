@@ -1,4 +1,5 @@
 import type { ArenaSurvivorCharacterState, ArenaSurvivorPlayerState } from "./protocol.js";
+import type { SupportedLanguage } from "@open-party-lab/game-core";
 
 /** Game-owned copy for character selection, loadouts, shops and chest rewards. */
 export const arenaSurvivorEnglishContent: Readonly<Record<string, string>> = {
@@ -287,23 +288,167 @@ const germanLabels: Readonly<Record<string, string>> = {
   Luck: "Glück", Harvest: "Ernte", "Life Steal": "Lebensraub", Regen: "Regeneration"
 };
 
-export function getArenaSurvivorContentText(text: string, language?: "de" | "en"): string {
-  if (language !== "en") return germanLabels[text] ?? text;
+type ExtraLanguage = "es" | "fr" | "pt-BR";
+type LocalizedCopyRow = readonly [english: string, spanish: string, french: string, portuguese: string];
+
+/** Localized names and base tooltips for characters, weapons and items. */
+const localizedCopyRows: readonly LocalizedCopyRow[] = [
+  ["Scrappy", "Chatarra", "Gringalet", "Sucatinha"], ["the Sharpshooter", "El tirador certero", "Le tireur d’élite", "O atirador certeiro"],
+  ["Clobbert", "Porrazos", "Gros Cogneur", "Porretão"], ["the Heavy Hitter", "El golpe contundente", "La force de frappe", "A força do porrete"],
+  ["Embertha", "Brasa", "Braise", "Brasa"], ["the Little Flame", "La llamita", "La petite flamme", "A chaminha"],
+  ["Nibbles", "Mordisquitos", "Grignote", "Beliscão"], ["the Ravenous", "El mordaz", "Le mordant", "O mordaz"],
+  ["Doctor Spud", "Doctor Patata", "Docteur Patate", "Doutor Batata"], ["the Healer", "El sanador", "Le guérisseur", "O curandeiro"],
+  ["Sir Spudley", "Sir Patatón", "Sir Patate", "Sir Batatão"], ["the Tank", "El tanque", "Le tank", "O tanque"],
+  ["Dashalotte", "Turboleta", "Turbolette", "Turboleta"], ["the Turbo Dumpling", "La bola turbo", "La boulette turbo", "O bolinho turbo"],
+  ["Professor Paradox", "Profesor Paradoja", "Professeur Paradoxe", "Professor Paradoxo"], ["the All-Rounder", "El todoterreno", "Le polyvalent", "O versátil"],
+  ["Roundling", "Redondito", "Rondouillet", "Redondinho"], ["the Balanced", "El equilibrado", "L’équilibré", "O equilibrado"],
+  ["Brawler", "Luchador", "Bagarreur", "Brigão"], ["the Melee Fighter", "El luchador cuerpo a cuerpo", "Le combattant au corps à corps", "O lutador corpo a corpo"],
+  ["Hunter", "Cazador", "Chasseur", "Caçador"], ["the Ranger", "El luchador a distancia", "Le combattant à distance", "O lutador à distância"],
+  ["Lucky Spud", "Patata Suertuda", "Patate Chanceuse", "Batata Sortuda"], ["the Lucky One", "El afortunado", "Le chanceux", "O sortudo"],
+  ["Sprout", "Brote", "Pousse", "Broto"], ["the Harvester", "El cosechador", "Le récolteur", "O colhedor"],
+  ["Rust Blade", "Hoja oxidada", "Lame rouillée", "Lâmina enferrujada"],
+  ["Twin Daggers", "Dagas gemelas", "Doubles dagues", "Adagas gêmeas"],
+  ["War Hammer", "Martillo de guerra", "Marteau de guerre", "Martelo de guerra"],
+  ["Spear", "Lanza", "Lance", "Lança"], ["Lance", "Lanza larga", "Lance longue", "Lança longa"],
+  ["Stone", "Piedra", "Pierre", "Pedra"], ["Stick", "Palo", "Bâton", "Cajado"],
+  ["Pitchfork", "Horca", "Fourche", "Forcado"], ["Halberd", "Alabarda", "Hallebarde", "Alabarda"],
+  ["Morning Star", "Lucero del alba", "Étoile du matin", "Maça estrela"], ["Cleaver", "Cuchilla", "Couperet", "Cutelo"],
+  ["Survivor Pistol", "Pistola de supervivencia", "Pistolet de survie", "Pistola de sobrevivência"],
+  ["Hunter Bow", "Arco de cazador", "Arc de chasse", "Arco de caça"], ["Scrap Salvo", "Ráfaga de chatarra", "Rafale de ferraille", "Rajada de sucata"],
+  ["Ember Wand", "Vara de brasas", "Baguette de braise", "Varinha de brasa"], ["Frost Orb", "Orbe de escarcha", "Orbe de givre", "Orbe de gelo"],
+  ["Spark Rod", "Vara eléctrica", "Bâton électrique", "Bastão elétrico"], ["Coil Carbine", "Carabina de bobina", "Carabine à bobine", "Carabina de bobina"],
+  ["Gear Launcher", "Lanzatuercas", "Lance-engrenages", "Lança-engrenagens"], ["Venom Siphon", "Sifón venenoso", "Siphon venimeux", "Sifão venenoso"],
+  ["Prism Scepter", "Cetro prisma", "Sceptre prismatique", "Cetro prismático"],
+  ["Thick Mushroom Cap", "Gorro de champiñón", "Bonnet de champignon", "Touca de cogumelo"],
+  ["Iron Shell", "Coraza de hierro", "Carapace de fer", "Carapaça de ferro"], ["Thick Jacket", "Chaqueta gruesa", "Veste épaisse", "Casaco reforçado"],
+  ["Stone Core", "Núcleo de piedra", "Cœur de pierre", "Núcleo de pedra"], ["Power Bracelet", "Brazalete de fuerza", "Bracelet de puissance", "Bracelete de força"],
+  ["Berserker Feather", "Pluma berserker", "Plume berserker", "Pena berserker"], ["Glass Eye", "Ojo de cristal", "Œil de verre", "Olho de vidro"],
+  ["Shooting Glove", "Guante de tiro", "Gant de tir", "Luva de tiro"], ["Runner Boots", "Botas de corredor", "Bottes de course", "Botas de corrida"],
+  ["Targeting Scope", "Mira telescópica", "Lunette de visée", "Mira telescópica"], ["Arcane Crystal", "Cristal arcano", "Cristal arcanique", "Cristal arcano"],
+  ["Vampire Brooch", "Broche vampírica", "Broche vampire", "Broche vampírica"], ["Magnet Core", "Núcleo magnético", "Cœur magnétique", "Núcleo magnético"],
+  ["Herbal Bandage", "Venda herbal", "Bandage aux herbes", "Atadura de ervas"], ["Drill Core", "Núcleo perforador", "Cœur foreur", "Núcleo perfurador"],
+  ["Duel Ribbon", "Cinta de duelo", "Ruban de duel", "Fita de duelo"], ["Thorn Chain", "Cadena de espinas", "Chaîne d’épines", "Corrente de espinhos"],
+  ["Medal", "Medalla", "Médaille", "Medalha"], ["Blindfold", "Venda para los ojos", "Bandeau", "Venda"],
+  ["Lucky Charm", "Amuleto de la suerte", "Porte-bonheur", "Amuleto da sorte"], ["Harvest Sprout", "Brote cosechador", "Pousse récolteuse", "Broto colhedor"],
+  ["Heavy Rounds", "Munición pesada", "Munitions lourdes", "Munição pesada"],
+  ["A balanced melee weapon with solid range and reliable damage per second.", "Arma cuerpo a cuerpo equilibrada, con buen alcance y daño constante.", "Arme de mêlée équilibrée, avec une bonne portée et des dégâts fiables.", "Arma corpo a corpo equilibrada, com bom alcance e dano constante."],
+  ["Very fast melee weapons. Ideal for life steal, critical hits and on-hit synergies.", "Dagas cuerpo a cuerpo muy rápidas. Ideales para robo de vida, críticos y efectos al impactar.", "Armes de mêlée très rapides, idéales pour le vol de vie, les coups critiques et les effets à l’impact.", "Armas corpo a corpo muito rápidas, ideais para roubo de vida, críticos e efeitos ao acertar."],
+  ["A slow, hard-hitting melee weapon for durable burst builds.", "Arma lenta y contundente para configuraciones resistentes de daño explosivo.", "Arme lente et puissante pour les configurations résistantes axées sur les dégâts instantanés.", "Arma lenta e potente para builds resistentes de dano explosivo."],
+  ["A long melee weapon with 100% melee scaling and low base critical chance.", "Arma cuerpo a cuerpo de gran alcance, escala al 100% con combate cuerpo a cuerpo y tiene poca probabilidad crítica base.", "Arme de mêlée à longue portée, avec une progression de mêlée à 100 % et peu de chances critiques de base.", "Arma corpo a corpo de longo alcance, escala 100% com atributos corpo a corpo e tem baixa chance crítica base."],
+  ["Even longer than the spear, but a little slower. Strong against single targets.", "Más larga que la lanza, pero algo más lenta. Fuerte contra objetivos individuales.", "Encore plus longue que la lance, mais un peu plus lente. Efficace contre les cibles isolées.", "Mais longa que a lança, porém um pouco mais lenta. Forte contra alvos únicos."],
+  ["Crude but effective. A heavy stone for short, powerful hits.", "Rústica pero eficaz: una piedra pesada para golpes cortos y potentes.", "Brute mais efficace : une pierre lourde pour des coups courts et puissants.", "Rústica, mas eficaz: uma pedra pesada para golpes curtos e potentes."],
+  ["A fast, light melee weapon with low damage per hit and a steady rhythm.", "Arma cuerpo a cuerpo ligera y rápida, con poco daño por golpe y ritmo constante.", "Arme de mêlée légère et rapide, avec peu de dégâts par coup et un rythme régulier.", "Arma corpo a corpo leve e rápida, com pouco dano por golpe e ritmo constante."],
+  ["A long farming tool that can hit several enemies along the front line.", "Herramienta agrícola de gran alcance que golpea a varios enemigos en primera línea.", "Outil agricole à longue portée qui peut toucher plusieurs ennemis sur la ligne de front.", "Ferramenta agrícola de longo alcance que acerta vários inimigos na linha de frente."],
+  ["A powerful polearm with good reach and strong single-target damage.", "Arma de asta potente, con buen alcance y gran daño contra un solo objetivo.", "Arme d’hast puissante, avec une bonne portée et de lourds dégâts sur une cible unique.", "Arma de haste potente, com bom alcance e alto dano contra um único alvo."],
+  ["A slow, massive skull-cracker for raw force and high knockback.", "Arma lenta y enorme para golpear con fuerza y causar mucho retroceso.", "Arme lente et massive qui frappe fort et repousse fortement les ennemis.", "Arma lenta e enorme, feita para golpes fortes e alto empurrão."],
+  ["A short blade that scales with maximum health for durable melee builds.", "Hoja corta que escala con la vida máxima para builds cuerpo a cuerpo resistentes.", "Lame courte qui évolue avec les PV max pour les configurations de mêlée résistantes.", "Lâmina curta que escala com PV máximo para builds corpo a corpo resistentes."],
+  ["A balanced ranged weapon with reliable speed and good range.", "Arma a distancia equilibrada, con velocidad fiable y buen alcance.", "Arme à distance équilibrée, avec une cadence fiable et une bonne portée.", "Arma à distância equilibrada, com velocidade confiável e bom alcance."],
+  ["Slow, precise ranged attacks with strong individual projectiles.", "Ataques a distancia lentos y precisos con proyectiles potentes.", "Attaques à distance lentes et précises, avec des projectiles puissants.", "Ataques à distância lentos e precisos, com projéteis potentes."],
+  ["Many small hits. Strong with attack speed, extra projectiles and life steal.", "Muchos impactos pequeños. Se beneficia de la velocidad de ataque, proyectiles extra y robo de vida.", "De nombreux petits impacts. Profite de la vitesse d’attaque, des projectiles supplémentaires et du vol de vie.", "Muitos acertos pequenos. Combina com velocidade de ataque, projéteis extras e roubo de vida."],
+  ["A balanced fire-magic weapon that scales well with magic and elemental power.", "Arma equilibrada de magia de fuego que escala bien con magia y poder elemental.", "Arme équilibrée de magie de feu qui évolue bien avec la magie et la puissance élémentaire.", "Arma equilibrada de magia de fogo que escala bem com magia e poder elemental."],
+  ["A defensive magic weapon with controlled, reliable damage.", "Arma mágica defensiva con daño controlado y fiable.", "Arme magique défensive aux dégâts maîtrisés et fiables.", "Arma mágica defensiva com dano controlado e confiável."],
+  ["A very fast magic weapon with strong attack-speed and critical-hit synergy.", "Arma mágica muy rápida que combina bien con velocidad de ataque y golpes críticos.", "Arme magique très rapide, idéale avec la vitesse d’attaque et les coups critiques.", "Arma mágica muito rápida, com ótima sinergia com velocidade de ataque e críticos."],
+  ["A precise magnetic shot with high projectile speed and strong piercing scaling.", "Disparo magnético preciso, con gran velocidad de proyectil y buena progresión de perforación.", "Tir magnétique précis, avec une vitesse de projectile élevée et une forte progression de perforation.", "Disparo magnético preciso, com alta velocidade de projétil e ótima escala de perfuração."],
+  ["Fires scattered scrap gears. Strong with extra projectiles, but only at short to medium range.", "Dispara engranajes de chatarra dispersos. Mejora con proyectiles extra, pero solo alcanza distancias cortas y medias.", "Lance des engrenages de ferraille dispersés. Efficace avec des projectiles supplémentaires, à courte et moyenne portée.", "Dispara engrenagens de sucata espalhadas. Fica forte com projéteis extras, mas só alcança distâncias curtas e médias."],
+  ["Sprays poisonous needles in rapid succession. Ideal for speed, sustain and aggressive kiting builds.", "Lanza agujas venenosas en rápida sucesión. Ideal para builds veloces, resistentes y de ataque a distancia.", "Projette rapidement des aiguilles empoisonnées. Idéal pour les configurations rapides, endurantes et agressives à distance.", "Dispara agulhas venenosas em sequência rápida. Ideal para builds velozes, sustentáveis e agressivas à distância."],
+  ["Focuses shimmering shards into heavy arcane shots. Slower attacks, but strong critical scaling.", "Concentra fragmentos brillantes en potentes disparos arcanos. Ataca más despacio, pero escala muy bien con críticos.", "Concentre des éclats scintillants en tirs arcaniques puissants. Attaques plus lentes, mais excellents coups critiques.", "Concentra estilhaços brilhantes em disparos arcanos potentes. Ataca mais devagar, mas escala muito bem com críticos."],
+  ["More health at the cost of some raw damage.", "Más vida a cambio de algo de daño base.", "Plus de PV au prix d’une partie des dégâts bruts.", "Mais vida em troca de um pouco de dano bruto."],
+  ["More armor, but slightly lower movement speed.", "Más armadura, pero algo menos de velocidad de movimiento.", "Plus d’armure, mais une vitesse de déplacement légèrement réduite.", "Mais armadura, mas um pouco menos de velocidade de movimento."],
+  ["Combines health and armor, but slows your attacks.", "Combina vida y armadura, pero reduce la velocidad de ataque.", "Combine PV et armure, mais ralentit les attaques.", "Combina vida e armadura, mas reduz a velocidade de ataque."],
+  ["Very durable, but at the cost of mobility and attack flow.", "Muy resistente, pero a costa de movilidad y ritmo de ataque.", "Très résistant, au prix de la mobilité et du rythme d’attaque.", "Muito resistente, mas com menos mobilidade e ritmo de ataque."],
+  ["More damage, but less mobility.", "Más daño, pero menos movilidad.", "Plus de dégâts, mais moins de mobilité.", "Mais dano, mas menos mobilidade."],
+  ["More attack speed in exchange for some raw damage.", "Más velocidad de ataque a cambio de algo de daño base.", "Plus de vitesse d’attaque en échange de dégâts bruts.", "Mais velocidade de ataque em troca de um pouco de dano bruto."],
+  ["Boosts critical chance and damage at a defensive cost.", "Aumenta la probabilidad y el daño crítico a costa de defensa.", "Augmente les chances et les dégâts critiques au prix de la défense.", "Aumenta a chance e o dano crítico, mas reduz a defesa."],
+  ["More projectiles and speed, but lower raw damage.", "Más proyectiles y velocidad, pero menos daño base.", "Plus de projectiles et de vitesse, mais moins de dégâts bruts.", "Mais projéteis e velocidade, mas menos dano bruto."],
+  ["More movement speed and dodge, but less health.", "Más velocidad de movimiento y evasión, pero menos vida.", "Plus de vitesse de déplacement et d’esquive, mais moins de PV.", "Mais velocidade de movimento e esquiva, mas menos vida."],
+  ["More weapon range and ranged power, but slower attacks.", "Más alcance y potencia a distancia, pero ataques más lentos.", "Plus de portée et de puissance à distance, mais des attaques plus lentes.", "Mais alcance e poder à distância, mas ataques mais lentos."],
+  ["Massive magic and elemental bonuses, but less durability.", "Grandes bonificaciones de magia y daño elemental, pero menos resistencia.", "Énormes bonus de magie et de dégâts élémentaires, mais moins de résistance.", "Grandes bônus de magia e dano elemental, mas menos resistência."],
+  ["Grants life steal and damage, but costs armor.", "Otorga robo de vida y daño, pero reduce la armadura.", "Accorde du vol de vie et des dégâts, mais réduit l’armure.", "Concede roubo de vida e dano, mas reduz a armadura."],
+  ["Increases pickup range and improves drop luck.", "Aumenta el radio de recogida y la suerte con los objetos.", "Augmente le rayon de collecte et la chance de butin.", "Aumenta o raio de coleta e a sorte com itens."],
+  ["More regeneration and some health, but slower movement.", "Más regeneración y vida, pero menos velocidad de movimiento.", "Plus de régénération et de PV, mais moins de vitesse de déplacement.", "Mais regeneração e vida, mas menos velocidade de movimento."],
+  ["Long-term economy at the cost of direct damage.", "Mejora la economía a largo plazo a costa del daño directo.", "Améliore l’économie à long terme au prix des dégâts directs.", "Melhora a economia a longo prazo, mas reduz o dano direto."],
+  ["Combines critical chance and attack speed, but makes your build more fragile.", "Combina probabilidad crítica y velocidad de ataque, pero vuelve tu build más frágil.", "Combine chances critiques et vitesse d’attaque, mais fragilise votre configuration.", "Combina chance crítica e velocidade de ataque, mas deixa sua build mais frágil."],
+  ["Combines life steal and armor, but costs movement speed.", "Combina robo de vida y armadura, pero reduce la velocidad de movimiento.", "Combine vol de vie et armure, mais réduit la vitesse de déplacement.", "Combina roubo de vida e armadura, mas reduz a velocidade de movimento."],
+  ["A small hybrid pick: health, damage, armor and speed in exchange for critical chance.", "Opción híbrida: vida, daño, armadura y velocidad a cambio de probabilidad crítica.", "Choix hybride : PV, dégâts, armure et vitesse en échange de chances critiques.", "Escolha híbrida: vida, dano, armadura e velocidade em troca de chance crítica."],
+  ["Critical chance and dodge in exchange for shorter weapon range.", "Probabilidad crítica y evasión a cambio de menor alcance del arma.", "Chances critiques et esquive en échange d’une portée d’arme réduite.", "Chance crítica e esquiva em troca de menor alcance da arma."],
+  ["More luck and easier pickups at the cost of some attack speed.", "Más suerte y recogida de objetos a cambio de algo de velocidad de ataque.", "Plus de chance et une collecte facilitée au prix d’un peu de vitesse d’attaque.", "Mais sorte e coleta mais fácil em troca de um pouco de velocidade de ataque."],
+  ["Early economy with a weaker start in combat.", "Economía inicial a cambio de empezar con menos fuerza en combate.", "Économie précoce, mais un début de combat plus difficile.", "Economia inicial, mas com um começo mais fraco no combate."],
+  ["More ranged power, damage and range at the cost of attack speed and critical chance.", "Más potencia, daño y alcance a distancia a costa de velocidad de ataque y probabilidad crítica.", "Plus de puissance, de dégâts et de portée à distance, au prix de la vitesse d’attaque et des chances critiques.", "Mais poder, dano e alcance à distância, mas menos velocidade de ataque e chance crítica."],
+  ["Loves anything loud at a safe distance. Strong ranged damage, but not the toughest potato hero.", "Le encanta hacer ruido desde lejos. Inflige mucho daño a distancia, pero es bastante frágil.", "Il adore faire du bruit à distance. Il inflige de lourds dégâts à distance, mais reste fragile.", "Adora fazer barulho de longe. Causa muito dano à distância, mas é pouco resistente."],
+  ["Solves most problems with a melee weapon. Massive melee damage and extra health, but slower attacks.", "Resuelve casi todo con un arma cuerpo a cuerpo. Mucho daño y más vida, pero ataca más despacio.", "Il résout presque tout avec une arme de mêlée. Dégâts élevés et plus de PV, mais des attaques plus lentes.", "Resolve quase tudo com uma arma corpo a corpo. Muito dano e mais vida, mas ataca mais devagar."],
+  ["Throws fire, frost and sparks everywhere. High magic and elemental damage, but little armor.", "Lanza fuego, hielo y chispas. Mucho daño mágico y elemental, pero poca armadura.", "Elle lance feu, glace et étincelles. Beaucoup de dégâts magiques et élémentaires, mais peu d’armure.", "Lança fogo, gelo e faíscas. Muito dano mágico e elemental, mas pouca armadura."],
+  ["Looks harmless, but chews through entire hordes. Strong life steal and attack speed, but lower base damage.", "Parece inofensivo, pero atraviesa hordas. Mucho robo de vida y velocidad de ataque, pero menos daño base.", "Il semble inoffensif, mais traverse des hordes. Vol de vie et vitesse d’attaque élevés, mais dégâts de base réduits.", "Parece inofensivo, mas atravessa hordas. Muito roubo de vida e velocidade de ataque, porém menos dano básico."],
+  ["Always carries bandages, tea and a questionable broth. More regeneration and health, but less speed.", "Siempre lleva vendas, té y una poción dudosa. Más regeneración y vida, pero menos velocidad.", "Il a toujours des pansements, du thé et une potion douteuse. Plus de régénération et de PV, mais moins de vitesse.", "Sempre carrega curativos, chá e uma poção duvidosa. Mais regeneração e vida, mas menos velocidade."],
+  ["Wears more metal than sense. Huge health and armor, paid for with mobility and attack speed.", "Lleva más metal que sentido común. Mucha vida y armadura, a cambio de movilidad y velocidad de ataque.", "Il porte plus de métal que de bon sens. Beaucoup de PV et d’armure, au prix de la mobilité et de la vitesse d’attaque.", "Carrega mais metal que bom senso. Muita vida e armadura, mas perde mobilidade e velocidade de ataque."],
+  ["Gone before the enemy notices the attack. Great speed and dodge, but low health and range.", "Ya se fue antes de que el enemigo note el ataque. Mucha velocidad y evasión, pero poca vida y alcance.", "Elle a déjà disparu avant que l’ennemi ne remarque l’attaque. Rapide et agile, mais peu de PV et de portée.", "Já sumiu antes que o inimigo perceba o ataque. Muita velocidade e esquiva, mas pouca vida e alcance."],
+  ["Has a theory for everything and usually a useful solution. Small bonuses to health, damage, speed and economy.", "Tiene una teoría para todo y casi siempre una solución útil. Pequeñas ventajas en vida, daño, velocidad y economía.", "Il a une théorie sur tout et souvent une solution utile. Petits bonus en PV, dégâts, vitesse et économie.", "Tem uma teoria para tudo e quase sempre uma solução útil. Pequenos bônus em vida, dano, velocidade e economia."],
+  ["A rounded introduction with small bonuses to health, damage, speed and long-term materials.", "Una opción equilibrada con pequeñas bonificaciones de vida, daño, velocidad y materiales a largo plazo.", "Un choix équilibré avec de petits bonus de PV, dégâts, vitesse et matériaux à long terme.", "Uma opção equilibrada com pequenos bônus de vida, dano, velocidade e materiais a longo prazo."],
+  ["High attack speed and dodge with a melee focus, but weak range and ranged damage.", "Ataca rápido y esquiva bien cuerpo a cuerpo, pero tiene poco alcance y daño a distancia.", "Rapide et agile au corps à corps, mais avec peu de portée et de dégâts à distance.", "Ataca rápido e esquiva bem no corpo a corpo, mas tem pouco alcance e dano à distância."],
+  ["High weapon range, ranged power and critical chance, but much less health and melee power.", "Gran alcance, daño a distancia y críticos, pero mucha menos vida y fuerza cuerpo a cuerpo.", "Grande portée, puissance à distance et coups critiques, mais beaucoup moins de PV et de force au corps à corps.", "Grande alcance, dano à distância e chance crítica, mas bem menos vida e força corpo a corpo."],
+  ["Better drops and health pickups, but weaker direct combat.", "Encuentra mejores objetos y curaciones, pero es más débil en combate directo.", "De meilleurs butins et soins, mais moins efficace en combat direct.", "Encontra itens e curas melhores, mas é mais fraco no combate direto."],
+  ["Strong harvesting and long-term economy, but weak starting damage.", "Destaca al recolectar y en economía a largo plazo, pero empieza con poco daño.", "Excellent en récolte et en économie à long terme, mais faible en dégâts au départ.", "É ótimo na coleta e na economia a longo prazo, mas começa com pouco dano."],
+  ["A solid basic strike without a major weakness.", "Golpe básico fiable y sin grandes puntos débiles.", "Coup de base fiable, sans faiblesse majeure.", "Golpe básico confiável, sem grandes pontos fracos."],
+  ["A little more damage and slightly faster attacks.", "Un poco más de daño y ataques ligeramente más rápidos.", "Un peu plus de dégâts et des attaques légèrement plus rapides.", "Um pouco mais de dano e ataques ligeiramente mais rápidos."],
+  ["Noticeably stronger and more comfortable in close combat.", "Más potente y cómodo en combate cuerpo a cuerpo.", "Plus puissant et plus agréable au corps à corps.", "Mais forte e confortável no combate corpo a corpo."],
+  ["A dependable late-game all-rounder for physical melee builds.", "Opción versátil y fiable para builds cuerpo a cuerpo físicas en el final de la partida.", "Un choix polyvalent et fiable en fin de partie pour les configurations de mêlée physique.", "Uma opção versátil e confiável para builds corpo a corpo físicas no fim da partida."],
+  ["Lv. 1: low damage, but a high critical chance.", "Niv. 1: poco daño, pero alta probabilidad crítica.", "Niv. 1 : peu de dégâts, mais de fortes chances critiques.", "Nv. 1: pouco dano, mas alta chance crítica."],
+  ["Lv. 2: critical-hit builds scale much better.", "Niv. 2: las builds de golpes críticos mejoran mucho.", "Niv. 2 : les configurations critiques progressent bien mieux.", "Nv. 2: builds de crítico evoluem muito melhor."],
+  ["Lv. 3: 40% base critical chance with hard-hitting criticals.", "Niv. 3: 40% de probabilidad crítica base y críticos potentes.", "Niv. 3 : 40 % de chances critiques de base et des critiques puissants.", "Nv. 3: 40% de chance crítica base e críticos potentes."],
+  ["Lv. 4: very high single-target critical burst.", "Niv. 4: gran daño crítico explosivo contra un solo objetivo.", "Niv. 4 : très gros dégâts critiques sur une cible unique.", "Nv. 4: alto dano crítico explosivo contra um único alvo."],
+  ["Extremely heavy hits, but slow attacks.", "Golpes muy potentes, pero ataques lentos.", "Des coups très puissants, mais des attaques lentes.", "Golpes muito fortes, mas ataques lentos."],
+  ["A noticeable power spike with smoother attacks.", "Aumento notable de potencia y ataques más fluidos.", "Un gain de puissance notable et des attaques plus fluides.", "Um aumento notável de poder com ataques mais rápidos."],
+  ["Massive damage against individual targets.", "Daño masivo contra objetivos individuales.", "Dégâts massifs contre les cibles isolées.", "Dano massivo contra alvos únicos."],
+  ["A brutal heavy hitter for tank and burst builds.", "Un arma contundente para builds de tanque y daño explosivo.", "Une arme dévastatrice pour les configurations tank et dégâts instantanés.", "Uma arma devastadora para builds de tanque e dano explosivo."],
+  ["Lv. 1: solid shot with 100% ranged scaling.", "Niv. 1: disparo fiable que escala al 100% con daño a distancia.", "Niv. 1 : tir fiable avec une progression à distance de 100 %.", "Nv. 1: disparo confiável com escala de 100% à distância."],
+  ["Lv. 2: 17 damage and 10% base critical chance.", "Niv. 2: 17 de daño y 10% de probabilidad crítica base.", "Niv. 2 : 17 dégâts et 10 % de chances critiques de base.", "Nv. 2: 17 de dano e 10% de chance crítica base."],
+  ["Lv. 3: reliable mid-game pick.", "Niv. 3: opción fiable para la mitad de la partida.", "Niv. 3 : un choix fiable à mi-parcours.", "Nv. 3: escolha confiável para o meio da partida."],
+  ["Lv. 4: high ranged burst with 20% base critical chance.", "Niv. 4: gran daño a distancia con 20% de probabilidad crítica base.", "Niv. 4 : gros dégâts à distance avec 20 % de chances critiques de base.", "Nv. 4: alto dano à distância com 20% de chance crítica base."]
+];
+
+const localizedDisplayCopy: Record<ExtraLanguage, Readonly<Record<string, string>>> = {
+  es: Object.fromEntries(localizedCopyRows.map(([en, es]) => [en, es])),
+  fr: Object.fromEntries(localizedCopyRows.map(([en, , fr]) => [en, fr])),
+  "pt-BR": Object.fromEntries(localizedCopyRows.map(([en, , , pt]) => [en, pt]))
+};
+
+const localizedStatTerms: Record<ExtraLanguage, ReadonlyArray<readonly [string, string]>> = {
+  es: [["critical damage", "daño crítico"], ["critical chance", "probabilidad crítica"], ["attack speed", "velocidad de ataque"], ["movement speed", "velocidad de movimiento"], ["weapon range", "alcance del arma"], ["ranged power", "potencia a distancia"], ["pickup radius", "radio de recogida"], ["Max HP", "vida máx."], ["life steal", "robo de vida"], ["armor", "armadura"], ["damage", "daño"], ["dodge", "evasión"], ["luck", "suerte"], ["harvesting", "recolección"], ["projectiles", "proyectiles"], ["projectile", "proyectil"], ["magic", "magia"], ["elemental", "elemental"], ["range", "alcance"], ["Crit", "crítico"], ["HP", "vida"]],
+  fr: [["critical damage", "dégâts critiques"], ["critical chance", "chance de coup critique"], ["attack speed", "vitesse d’attaque"], ["movement speed", "vitesse de déplacement"], ["weapon range", "portée de l’arme"], ["ranged power", "puissance à distance"], ["pickup radius", "rayon de collecte"], ["Max HP", "PV max."], ["life steal", "vol de vie"], ["armor", "armure"], ["damage", "dégâts"], ["dodge", "esquive"], ["luck", "chance"], ["harvesting", "récolte"], ["projectiles", "projectiles"], ["projectile", "projectile"], ["magic", "magie"], ["elemental", "élémentaire"], ["range", "portée"], ["Crit", "critique"], ["HP", "PV"]],
+  "pt-BR": [["critical damage", "dano crítico"], ["critical chance", "chance crítica"], ["attack speed", "velocidade de ataque"], ["movement speed", "velocidade de movimento"], ["weapon range", "alcance da arma"], ["ranged power", "poder à distância"], ["pickup radius", "raio de coleta"], ["Max HP", "PV máx."], ["life steal", "roubo de vida"], ["armor", "armadura"], ["damage", "dano"], ["dodge", "esquiva"], ["luck", "sorte"], ["harvesting", "coleta"], ["projectiles", "projéteis"], ["projectile", "projétil"], ["magic", "magia"], ["elemental", "elemental"], ["range", "alcance"], ["Crit", "crítico"], ["HP", "PV"]]
+};
+
+function localizeEnglishShopText(text: string, language: ExtraLanguage): string {
+  const exact = localizedDisplayCopy[language][text];
+  if (exact) return exact;
+  return localizedStatTerms[language].reduce((result, [source, target]) =>
+    result.replace(new RegExp(`\\b${source.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`, "gi"), target), text);
+}
+
+export function getArenaSurvivorContentText(text: string, language?: SupportedLanguage): string {
+  const resolvedLanguage = language ?? "de";
+  if (resolvedLanguage === "de") return germanLabels[text] ?? text;
   if (text.startsWith("✦ ")) return `✦ ${getArenaSurvivorContentText(text.slice(2), language)}`;
   const exact = arenaSurvivorEnglishContent[text] ?? englishLabels[text];
+  if (resolvedLanguage === "es" || resolvedLanguage === "fr" || resolvedLanguage === "pt-BR") {
+    const localized = localizeEnglishShopText(exact ?? text, resolvedLanguage);
+    if (localized !== (exact ?? text)) return localized;
+  }
   if (exact) return exact;
-  return text
+  const englishFallback = text
     .replace(/^(.+) Lv\. (\d+)$/, (_, name: string, level: string) => `${arenaSurvivorEnglishContent[name] ?? name} Lv. ${level}`)
     .replace("Upgrade auf Lv.", "Upgrade to Lv.")
     .replace("Direkt kombinierbar zu Lv.", "Combine immediately to Lv.")
     .replace("Slot voll - erst verkaufen oder kombinieren", "Slots full - sell or combine first")
     .replace(/(\d+)\. Kopie/, "Copy $1")
     .replace("Neuer Waffenslot", "New weapon slot");
+  return resolvedLanguage === "es" || resolvedLanguage === "fr" || resolvedLanguage === "pt-BR"
+    ? localizeEnglishShopText(englishFallback, resolvedLanguage)
+    : englishFallback;
 }
 
 const presentationKeys = new Set(["displayName", "title", "description", "baseDescription", "summary", "label", "message"]);
 /** Translate presentation fields only; identifiers, user names and gameplay values stay intact. */
-export function localizeArenaSurvivorPresentation<T>(value: T, language?: "de" | "en"): T {
+export function localizeArenaSurvivorPresentation<T>(value: T, language?: SupportedLanguage): T {
   if (Array.isArray(value)) return value.map(entry => localizeArenaSurvivorPresentation(entry, language)) as T;
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key,
@@ -313,13 +458,13 @@ export function localizeArenaSurvivorPresentation<T>(value: T, language?: "de" |
   ])) as T;
 }
 
-export function localizeArenaSurvivorCharacter<T extends Pick<ArenaSurvivorCharacterState, "name" | "title" | "description">>(character: T, language?: "de" | "en"): T {
+export function localizeArenaSurvivorCharacter<T extends Pick<ArenaSurvivorCharacterState, "name" | "title" | "description">>(character: T, language?: SupportedLanguage): T {
   return { ...character, name: getArenaSurvivorContentText(character.name, language),
     title: getArenaSurvivorContentText(character.title, language),
     description: getArenaSurvivorContentText(character.description, language) };
 }
 
-export function localizeArenaSurvivorPlayer(player: ArenaSurvivorPlayerState, language?: "de" | "en"): ArenaSurvivorPlayerState {
+export function localizeArenaSurvivorPlayer(player: ArenaSurvivorPlayerState, language?: SupportedLanguage): ArenaSurvivorPlayerState {
   return { ...player, character: localizeArenaSurvivorCharacter(player.character, language),
     loadout: localizeArenaSurvivorPresentation(player.loadout, language),
     shop: localizeArenaSurvivorPresentation(player.shop, language) };

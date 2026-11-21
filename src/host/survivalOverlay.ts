@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { SupportedLanguage } from "@open-party-lab/game-core";
 import type { ArenaSurvivorState } from "../protocol.js";
 import { frostfireWorld } from "../survivalWorld.js";
 
@@ -22,14 +23,20 @@ export function createSurvivalOverlay(scene: Phaser.Scene) {
   xpTrack.append(xpFill); overlay.append(xpTrack);
   return {
     hide() { overlay.hidden = true; graphics.clear(); props.forEach(p => p.setVisible(false)); names.forEach(p => p.setVisible(false)); },
-    update(state: ArenaSurvivorState, language?: "de" | "en") {
+    update(state: ArenaSurvivorState, language?: SupportedLanguage) {
       const s = state.survival; overlay.hidden = !s || state.result.outcome !== "running"; graphics.clear();
       if (overlay.hidden || !s) { props.forEach(p => p.setVisible(false)); names.forEach(p => p.setVisible(false)); return; }
-      const en = language === "en";
-      const labels = { shop: "Shop", forge: en ? "Forge" : "Schmiede", chest: en ? "Chest" : "Kiste", rare_chest: en ? "Rare chest" : "Seltene Kiste", boss: "Boss" };
+      const words = {
+        de: { forge: "Schmiede", chest: "Kiste", rare: "Seltene Kiste", victory: "Gewonnen! Endlos weiterspielen?", endless: "Endlos · ✓ Survival", status: "Status" },
+        en: { forge: "Forge", chest: "Chest", rare: "Rare chest", victory: "Victory! Continue Endless?", endless: "Endless · ✓ Survival", status: "Status" },
+        es: { forge: "Forja", chest: "Cofre", rare: "Cofre raro", victory: "¡Victoria! ¿Seguir sin fin?", endless: "Sin fin · ✓ Supervivencia", status: "Estado" },
+        fr: { forge: "Forge", chest: "Coffre", rare: "Coffre rare", victory: "Victoire ! Continuer sans fin ?", endless: "Sans fin · ✓ Survie", status: "État" },
+        "pt-BR": { forge: "Forja", chest: "Baú", rare: "Baú raro", victory: "Vitória! Continuar sem fim?", endless: "Sem fim · ✓ Sobrevivência", status: "Status" }
+      }[language ?? "de"];
+      const labels = { shop: "Shop", forge: words.forge, chest: words.chest, rare_chest: words.rare, boss: "Boss" };
       const time = `${Math.floor(state.elapsedMs / 60000)}:${Math.floor(state.elapsedMs / 1000 % 60).toString().padStart(2, "0")}`;
-      const phase = s.pause === "chest" ? (en ? "Chest loot" : "Kistenfund") : s.pause === "level_up" ? "Level-Up" : s.pause === "victory" ? (en ? "Victory! Continue Endless?" : "Gewonnen! Endlos weiterspielen?") : s.pause === "forge" ? (en ? "Evolution Forge" : "Evolutionsschmiede") : s.pause === "shop" ? "Shop" : s.endless ? (en ? "Endless · ✓ Survival" : "Endlos · ✓ Survival") : "Frostfire Survival";
-      status.textContent = `${phase} · ${time} · Lv. ${s.level} · XP ${s.experience}/${s.experienceToNextLevel}${s.pause && s.pause !== "chest" ? ` · ${s.readyPlayerIds.length}/${s.participantIds.length} ✓` : ""}`;
+      const phase = s.pause === "chest" ? words.chest : s.pause === "level_up" ? "Level-Up" : s.pause === "victory" ? words.victory : s.pause === "forge" ? words.forge : s.pause === "shop" ? "Shop" : s.endless ? words.endless : "Frostfire Survival";
+      status.textContent = `${words.status}: ${phase} · ${time} · Lv. ${s.level} · XP ${s.experience}/${s.experienceToNextLevel}${s.pause && s.pause !== "chest" ? ` · ${s.readyPlayerIds.length}/${s.participantIds.length} ✓` : ""}`;
       xpFill.style.width = `${Math.min(100, s.experience / s.experienceToNextLevel * 100)}%`;
       const ctx = map.getContext("2d")!; ctx.clearRect(0, 0, 192, 144);
       if (scene.textures.exists(frostfireWorld.terrainKey)) {

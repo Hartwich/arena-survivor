@@ -1,5 +1,6 @@
 import { createCombatFeedback } from "./combatFeedback.js";
 import Phaser from "phaser";
+import type { SupportedLanguage } from "@open-party-lab/game-core";
 import { createSurvivalOverlay } from "./survivalOverlay.js";
 import { createSurvivalScenery } from "./survivalScenery.js";
 import type { ArenaSurvivorState } from "../protocol.js";
@@ -73,7 +74,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
   private unsubscribe?: () => void;
   private survivalOverlay?: ReturnType<typeof createSurvivalOverlay>;
   private survivalTiles: ReturnType<typeof createSurvivalScenery> = [];
-  private language: "de" | "en" = "de";
+  private language: SupportedLanguage = "de";
   private arenaBackground?: Phaser.GameObjects.Image;
   private arenaBackgroundShade?: Phaser.GameObjects.Rectangle;
   private arenaGraphics?: Phaser.GameObjects.Graphics;
@@ -138,7 +139,7 @@ export class ArenaSurvivorHostScene extends Phaser.Scene {
     });
 
     this.unsubscribe = client.subscribe((state) => {
-      this.language = state.room?.language === "en" ? "en" : "de";
+      this.language = state.room?.language ?? "de";
       // Intro and result screens belong to this game, not the platform.
       if (renderRoundScreens(this, state)) {
         this.combatFeedback?.clear();

@@ -50,6 +50,36 @@ test("chest offer presentation is translated without altering its recipient or s
   assert.equal(getArenaSurvivorContentText("✦ Rostklinge", "en"), "✦ Rust Blade");
 });
 
+test("Spanish, French and Brazilian Portuguese localize character and shop copy without changing stable IDs", () => {
+  for (const language of ["es", "fr", "pt-BR"]) {
+    for (const character of arenaSurvivorCharacterDefinitions) {
+      assert.notEqual(getArenaSurvivorContentText(character.name, language), getArenaSurvivorContentText(character.name, "en"));
+      assert.notEqual(getArenaSurvivorContentText(character.title, language), getArenaSurvivorContentText(character.title, "en"));
+      assert.notEqual(getArenaSurvivorContentText(character.description, language), getArenaSurvivorContentText(character.description, "en"));
+    }
+    for (const definition of arenaSurvivorWeaponDefinitions) {
+      assert.notEqual(getArenaSurvivorContentText(definition.name, language), definition.name);
+      const baseDescription = definition.baseDescription ?? definition.description;
+      assert.notEqual(getArenaSurvivorContentText(baseDescription, language), getArenaSurvivorContentText(baseDescription, "en"));
+    }
+    for (const definition of arenaSurvivorItemDefinitions) {
+      assert.notEqual(getArenaSurvivorContentText(definition.name, language), definition.name);
+      assert.notEqual(getArenaSurvivorContentText(definition.description, language), getArenaSurvivorContentText(definition.description, "en"));
+    }
+
+    const player = createArenaSurvivorPlayer({ id: "p1", name: "Rostklinge", color: "#fff", score: 0, isReady: true, connected: true }, { x: 10, y: 20 }, 100, undefined,
+      { weapons: [createLoadoutWeaponState("rust-blade", 1)], items: [] }, "schrotto-scharfschuss");
+    const localized = localizeArenaSurvivorPlayer(player, language);
+    assert.equal(localized.name, player.name);
+    assert.equal(localized.character.name, getArenaSurvivorContentText("Schrotto", language));
+    assert.equal(localized.loadout.weapons[0].weaponId, "rust-blade");
+    assert.equal(localized.loadout.weapons[0].displayName, getArenaSurvivorContentText("Rostklinge", language));
+    assert.notEqual(getArenaSurvivorContentText("Etwas mehr Schaden und minimal flotter.", language), getArenaSurvivorContentText("Etwas mehr Schaden und minimal flotter.", "en"));
+    assert.notEqual(getArenaSurvivorContentText("+15 Max HP, -4% Schaden", language), getArenaSurvivorContentText("+15 Max HP, -4% Schaden", "en"));
+    assert.equal(getArenaSurvivorContentText("+15 Max HP, -4% Schaden", language).includes("damage"), false);
+  }
+});
+
 test("public and private serialization use the round language without widening private views", () => {
   const context = { now: 1000, language: "en", roomSettings: {}, players: [
     { id: "p1", name: "Schrotto", color: "#fff", connected: true, isReady: true, score: 0, selectedCharacterId: "schrotto-scharfschuss" },

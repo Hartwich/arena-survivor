@@ -129,7 +129,7 @@ function toPublicSpawnIndicator(
   return publicIndicator;
 }
 
-function toPublicPlayer(player: ArenaSurvivorRuntimePlayerState, language?: "de" | "en"): ArenaSurvivorPlayerState {
+function toPublicPlayer(player: ArenaSurvivorRuntimePlayerState, language?: import("@open-party-lab/game-core").SupportedLanguage): ArenaSurvivorPlayerState {
   const { moveInputX: _moveInputX, moveInputY: _moveInputY,
     nextLifeStealAtMs: _nextLifeStealAtMs, ...publicPlayer } = player;
   return localizeArenaSurvivorPlayer(publicPlayer, language);

@@ -4,6 +4,7 @@ import type {
   ArenaSurvivorStatModifiers
 } from "../../protocol.js";
 import { createSeededRandom, type ArenaSurvivorRuntimePlayerState } from "../arenaSurvivorState.js";
+import type { SupportedLanguage } from "@open-party-lab/game-core";
 
 interface ArenaSurvivorLevelBonusDefinition {
   id: string;
@@ -36,10 +37,10 @@ const levelBonusDefinitions: ArenaSurvivorLevelBonusDefinition[] = [
 export function createArenaSurvivorLevelUpShopState(
   player: ArenaSurvivorRuntimePlayerState,
   seed: number,
-  language?: "de" | "en",
+  language?: SupportedLanguage,
   survival = false
 ): { shop: ArenaSurvivorShopState; seed: number } {
-  const languageKey = language === "en" ? "en" : "de";
+  const languageKey = language === "de" ? "de" : "en";
   const remainingDefinitions = levelBonusDefinitions.filter(definition => !survival || definition.id !== "harvesting");
   const offers: ArenaSurvivorShopOfferState[] = [];
   let nextSeed = seed;
